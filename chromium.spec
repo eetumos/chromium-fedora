@@ -39,7 +39,7 @@
 %global build_chromedriver 1
 
 # enable|disable headless client build
-%global build_headless 1
+%global build_headless 0
 %ifarch ppc64le
 %global build_headless 0
 %endif
@@ -361,6 +361,9 @@ Patch150: chromium-124-qt6.patch
 # it is not supported in old glibc < 2.30, error: fatal error: 'sys/ifunc.h' file not found
 Patch305: chromium-124-el8-arm64-memory_tagging.patch
 Patch306: chromium-127-el8-ifunc-header.patch
+
+# workaround for build error due to old atk version on el8
+Patch307: chromium-129-el8-atk-compiler-error.patch
 
 # enable fstack-protector-strong
 Patch312: chromium-123-fstack-protector-strong.patch
@@ -1084,6 +1087,7 @@ Qt6 UI for chromium.
 %patch -P305 -p1 -b .el8-memory_tagging
 %patch -P306 -p1 -b .el8-ifunc-header
 %endif
+%patch -P307 -p1 -b .el8-atk-compiler-error
 %endif
 
 %patch -P312 -p1 -b .fstack-protector-strong
