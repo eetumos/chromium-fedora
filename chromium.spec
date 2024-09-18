@@ -39,7 +39,7 @@
 %global build_chromedriver 1
 
 # enable|disable headless client build
-%global build_headless 0
+%global build_headless 1
 %ifarch ppc64le
 %global build_headless 0
 %endif
