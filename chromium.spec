@@ -474,6 +474,10 @@ BuildRequires: clang-tools-extra
 BuildRequires: llvm
 BuildRequires: lld
 
+%if 0%{?rhel} && 0%{?rhel} <= 9
+BuildRequires: gcc-toolset-13-libatomic-devel
+%endif
+
 BuildRequires: rustc
 BuildRequires: bindgen-cli
 
