@@ -59,15 +59,6 @@
 # set esbuild_version
 %global esbuild_version 0.19.2
 
-# set latest version for devtoolset and gcc-toolset
-%global dts_version 12
-%if 0%{?rhel} == 8 || 0%{?rhel} == 9
-%global dts_version 13
-%endif
-
-# set name for toolset
-%global toolset gcc-toolset
-
 %if 0%{?rhel} == 8
 %global chromium_pybin /usr/bin/python3.9
 %else
@@ -156,24 +147,10 @@
 # enable|disable use_custom_libcxx
 %global use_custom_libcxx 1
 
-# enable clang by default
-%global clang 1
-
 # enable|disable control flow integrity support
 %global cfi 0
 %ifarch x86_64 aarch64
-%if %{clang}
-%if 0%{?fedora} || 0%{?rhel} > 7
 %global cfi 1
-%endif
-%endif
-%endif
-
-# set correct toolchain
-%if %{clang}
-%global toolchain clang
-%else
-%global toolchain gcc
 %endif
 
 # enable qt backend
@@ -297,7 +274,7 @@
 
 Name:	chromium%{chromium_channel}
 Version: 129.0.6668.58
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: A WebKit (Blink) powered web browser that Google doesn't want you to use
 Url: http://www.chromium.org/Home
 License: BSD-3-Clause AND LGPL-2.1-or-later AND Apache-2.0 AND IJG AND MIT AND GPL-2.0-or-later AND ISC AND OpenSSL AND (MPL-1.1 OR GPL-2.0-only OR LGPL-2.0-only)
@@ -313,13 +290,6 @@ Patch8: chromium-117-widevine-other-locations.patch
 Patch20: chromium-disable-font-tests.patch
 # don't download binary blob
 Patch21: chromium-123-screen-ai-service.patch
-
-# Fix issue where closure_compiler thinks java is only allowed in android builds
-# https://bugs.chromium.org/p/chromium/issues/detail?id=1192875
-Patch65: chromium-91.0.4472.77-java-only-allowed-in-android-builds.patch
-
-# Update rjsmin to 1.2.0
-Patch69: chromium-103.0.5060.53-update-rjsmin-to-1.2.0.patch
 
 # Disable tests on remoting build
 Patch82: chromium-98.0.4758.102-remoting-no-tests.patch
@@ -499,25 +469,10 @@ Source15: https://registry.npmjs.org/@esbuild/linux-arm64/-/linux-arm64-%{esbuil
 BuildRequires: golang-github-evanw-esbuild
 %endif
 
-%if %{clang}
 BuildRequires: clang
 BuildRequires: clang-tools-extra
 BuildRequires: llvm
 BuildRequires: lld
-# needs for libatomic
-%if 0%{?rhel} >= 8
-BuildRequires: %{toolset}-%{dts_version}-libatomic-devel
-%endif
-%else
-%if 0%{?rhel} == 8
-BuildRequires: %{toolset}-%{dts_version}-binutils, %{toolset}-%{dts_version}-libatomic-devel
-%endif
-%if 0%{?fedora} || 0%{?rhel} > 8
-BuildRequires: gcc-c++
-BuildRequires: gcc
-BuildRequires: binutils
-%endif
-%endif
 
 BuildRequires: rustc
 BuildRequires: bindgen-cli
@@ -1040,8 +995,6 @@ Qt6 UI for chromium.
 %patch -P20 -p1 -b .disable-font-test
 %patch -P21 -p1 -b .screen-ai-service
 
-%patch -P65 -p1 -b .java-only-allowed
-%patch -P69 -p1 -b .update-rjsmin-to-1.2.0
 %patch -P82 -p1 -b .remoting-no-tests
 
 %if ! %{bundlebrotli}
@@ -1233,11 +1186,9 @@ cp -a third_party/dav1d/version/version.h third_party/dav1d/libdav1d/include/dav
 %build
 
 # reduce warnings
-%if %{clang}
 FLAGS=' -Wno-deprecated-declarations -Wno-unknown-warning-option -Wno-unused-command-line-argument'
 FLAGS+=' -Wno-unused-but-set-variable -Wno-unused-result -Wno-unused-function -Wno-unused-variable'
 FLAGS+=' -Wno-unused-const-variable -Wno-unneeded-internal-declaration -Wno-unknown-attributes -Wno-unknown-pragmas'
-%endif
 
 %if %{system_build_flags}
 CFLAGS=${CFLAGS/-fexceptions}
@@ -1268,28 +1219,15 @@ RUSTFLAGS=${RUSTFLAGS/debuginfo=?/debuginfo=0}
 %endif
 %endif
 
-%if %{clang}
 export CC=clang
 export CXX=clang++
 export AR=llvm-ar
 export NM=llvm-nm
 export READELF=llvm-readelf
-%else
-export CC=gcc
-export CXX=g++ 
-export AR=ar
-export NM=nm
-export READELF=readelf
-%endif
 export CFLAGS
 export CXXFLAGS
 export LDFLAGS
 export RUSTFLAGS
-
-# enable gcc toolset on el8
-%if 0%{?rhel} == 8 && ! %{clang}
-. /opt/rh/%{toolset}-%{dts_version}/enable
-%endif
 
 # need for error: the option `Z` is only accepted on the nightly compiler
 export RUSTC_BOOTSTRAP=1
@@ -1334,16 +1272,11 @@ CHROMIUM_CORE_GN_DEFINES+=' google_default_client_id="%{default_client_id}"'
 CHROMIUM_CORE_GN_DEFINES+=' google_default_client_secret="%{default_client_secret}"'
 %endif
 
-%if %{clang}
 CHROMIUM_CORE_GN_DEFINES+=' is_clang=true'
 CHROMIUM_CORE_GN_DEFINES+=" clang_base_path=\"$clang_base_path\""
 CHROMIUM_CORE_GN_DEFINES+=" clang_version=\"$clang_version\""
 CHROMIUM_CORE_GN_DEFINES+=' clang_use_chrome_plugins=false'
 CHROMIUM_CORE_GN_DEFINES+=' use_lld=true'
-%else
-CHROMIUM_CORE_GN_DEFINES+=' is_clang=false'
-CHROMIUM_CORE_GN_DEFINES+=' use_lld=false'
-%endif
 
 # enable system rust
 CHROMIUM_CORE_GN_DEFINES+=' rust_sysroot_absolute="%{_prefix}"'
@@ -1978,6 +1911,9 @@ getent group chrome-remote-desktop >/dev/null || groupadd -r chrome-remote-deskt
 %endif
 
 %changelog
+* Thu Sep 19 2024 Than Ngo <than@redhat.com> - 129.0.6668.58-2
+- clean up
+
 * Tue Sep 17 2024 Than Ngo <than@redhat.com> - 129.0.6668.58-1
 - update to 129.0.6668.58
   * High CVE-2024-8904: Type Confusion in V8
