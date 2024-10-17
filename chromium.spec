@@ -354,6 +354,10 @@ Patch354: chromium-126-split-threshold-for-reg-with-hint.patch
 # fix build error: no member named 'hardware_destructive_interference_size' in namespace 'std'
 Patch355: chromium-130-hardware_destructive_interference_size.patch
 
+# fix build error on ppc64le
+# error: static assertion failed due to requirement 'sizeof(blink::MatchedProperties) <= 12': MatchedProperties should not grow without thinking
+Patch356: chromium-130-size-assertions.patch
+
 # set clang_lib path
 Patch358: chromium-127-rust-clanglib.patch
 
@@ -1058,6 +1062,7 @@ Qt6 UI for chromium.
 %endif
 
 %patch -P355 -p1 -b .hardware_destructive_interference_size
+%patch -P356 -p1 -b .size-assertions
 %patch -P358 -p1 -b .rust-clang_lib
 
 %ifarch ppc64le
@@ -2200,9 +2205,12 @@ getent group chrome-remote-desktop >/dev/null || groupadd -r chrome-remote-deskt
 
 * Wed Mar 06 2024 Than Ngo <than@redhat.com> - 122.0.6261.111-1
 - upstream security release 122.0.6261.111
-   * High CVE-2024-2173: Out of bounds memory access in V8 
+   * High CVE-2024-2173: Out of bounds memory access in V8
    * High CVE-2024-2174: Inappropriate implementation in V8
    * High CVE-2024-2176: Use after free in FedCM
+
+* Sat Mar 02 2024 Jiri Vanek <jvanek@redhat.com> - 122.0.6261.94-2
+- Rebuilt for java-21-openjdk as system jdk
 
 * Wed Feb 28 2024 Than Ngo <than@redhat.com> - 122.0.6261.94-1
 - upstream security release 122.0.6261.94
