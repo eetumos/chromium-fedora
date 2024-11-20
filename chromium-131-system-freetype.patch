@@ -1,0 +1,13 @@
+diff -up chromium-131.0.6778.69/build/linux/unbundle/freetype.gn.me chromium-131.0.6778.69/build/linux/unbundle/freetype.gn
+--- chromium-131.0.6778.69/build/linux/unbundle/freetype.gn.me	2024-11-13 08:48:26.212329841 +0100
++++ chromium-131.0.6778.69/build/linux/unbundle/freetype.gn	2024-11-13 08:49:03.071985611 +0100
+@@ -11,4 +11,9 @@ declare_args() {
+   # System FreeType configurations other than as described WILL INTRODUCE TEXT
+   # RENDERING AND SECURITY REGRESSIONS.
+   use_system_freetype = true
++
++  # Use FreeType for font rendering. If this is set to false, FreeType is
++  # replaced with the Rust-based Fontations set of libraries plus Skia
++  # path rendering.
++  enable_freetype = true
+ }

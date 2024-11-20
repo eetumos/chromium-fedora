@@ -99,7 +99,6 @@ header_files="	libavcodec/x86/inline_asm.h \
 		libavcodec/get_bits.h \
 		libavcodec/h263dsp.h \
 		libavcodec/h264chroma.h \
-		libavcodec/hevc.h \
 		libavcodec/hpeldsp.h \
 		libavcodec/hwaccels.h \
 		libavcodec/hwaccel_internal.h \
@@ -126,11 +125,6 @@ header_files="	libavcodec/x86/inline_asm.h \
 		libavcodec/mpegvideodata.h \
 		libavcodec/mpegvideoencdsp.h \
 		libavcodec/options_table.h \
-		libavcodec/opus.h \
-		libavcodec/opusdsp.h \
-		libavcodec/opus_celt.h \
-		libavcodec/opus_pvq.h \
-		libavcodec/opus_rc.h \
 		libavcodec/packet.h \
 		libavcodec/packet_internal.h \
 		libavcodec/pcm_tablegen.h \
@@ -270,7 +264,6 @@ manual_files=" libavcodec/aarch64/h264pred_neon.S \
 		libavformat/utils.c \
 		libavformat/version.c \
 		libavutil/aarch64/asm.S \
-		libavutil/aarch64/bswap.h \
 		libavutil/aarch64/cpu.c \
 		libavutil/aarch64/float_dsp_init.c \
 		libavutil/aarch64/float_dsp_neon.S \
