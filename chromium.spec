@@ -146,6 +146,9 @@
 
 # enable|disable use_custom_libcxx
 %global use_custom_libcxx 0
+%if 0%{?rhel} || 0%{?fedora} == 39
+%global use_custom_libcxx 1
+%endif
 
 # enable|disable control flow integrity support
 %global cfi 0
