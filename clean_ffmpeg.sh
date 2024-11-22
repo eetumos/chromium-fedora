@@ -72,6 +72,7 @@ header_files="	libavcodec/x86/inline_asm.h \
 		libavcodec/aacpsdsp.h \
 		libavcodec/aacsbrdata.h \
 		libavcodec/aac_ac3_parser.h \
+		libavcodec/parser.h \
 		libavcodec/aac_defines.h \
 		libavcodec/ac3.h \
 		libavcodec/ac3defs.h \
@@ -99,6 +100,7 @@ header_files="	libavcodec/x86/inline_asm.h \
 		libavcodec/get_bits.h \
 		libavcodec/h263dsp.h \
 		libavcodec/h264chroma.h \
+		libavcodec/hevc/hevc.h \
 		libavcodec/hpeldsp.h \
 		libavcodec/hwaccels.h \
 		libavcodec/hwaccel_internal.h \
@@ -124,6 +126,8 @@ header_files="	libavcodec/x86/inline_asm.h \
 		libavcodec/mpegvideo.h \
 		libavcodec/mpegvideodata.h \
 		libavcodec/mpegvideoencdsp.h \
+		libavcodec/opus/enc.h \
+		libavcodec/opus/opus.h \
 		libavcodec/options_table.h \
 		libavcodec/packet.h \
 		libavcodec/packet_internal.h \
@@ -180,6 +184,7 @@ header_files="	libavcodec/x86/inline_asm.h \
 		libavformat/iamf_reader.h \
 		libavformat/iamf.h \
 		libavutil/aarch64/cpu.h \
+		libavutil/aarch64/intreadwrite.h \
 		libavutil/x86/asm.h \
 		libavutil/x86/bswap.h \
 		libavutil/x86/cpu.h \
@@ -250,6 +255,7 @@ manual_files=" libavcodec/aarch64/h264pred_neon.S \
 		libavcodec/hpel_template.c \
 		libavcodec/hpeldsp.c \
 		libavcodec/options.c \
+		libavcodec/parser.c \
 		libavcodec/pcm.c \
 		libavcodec/pel_template.c \
 		libavcodec/utils.c \
