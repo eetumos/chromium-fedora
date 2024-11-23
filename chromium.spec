@@ -339,6 +339,9 @@ Patch141: chromium-118-dma_buf_export_sync_file-conflict.patch
 Patch150: chromium-124-qt6.patch
 Patch151: chromium-131-qt-ui.patch
 
+# revert, it causes ramdom crash on aarch64
+Patch300: chromium-131-revert-decommit-pooled-pages-by-default.patch
+
 # disable memory tagging (epel8 on aarch64) due to new feature IFUNC-Resolver
 # it is not supported in old glibc < 2.30, error: fatal error: 'sys/ifunc.h' file not found
 Patch305: chromium-124-el8-arm64-memory_tagging.patch
@@ -1055,6 +1058,10 @@ Qt6 UI for chromium.
 %if 0%{?rhel} > 9 || 0%{?fedora} > 39
 %patch -P150 -p1 -b .qt6
 %patch -P151 -p1 -b .qt-ui
+%endif
+
+%ifarch aarch64 ppc64le
+%patch -P300 -p1 -R -b .revert-decommit-pooled-pages-by-default
 %endif
 
 %if 0%{?rhel} == 8
@@ -1934,6 +1941,7 @@ getent group chrome-remote-desktop >/dev/null || groupadd -r chrome-remote-deskt
 %changelog
 * Sat Nov 23 2024 Than Ngo <than@redhat.com> - 131.0.6778.85-2
 - Enable qt-ui
+- Workaround for random crash
 
 * Wed Nov 20 2024 Than Ngo <than@redhat.com> - 131.0.6778.85-1
 - Update to 131.0.6778.85
