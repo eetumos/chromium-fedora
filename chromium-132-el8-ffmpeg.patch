@@ -1,0 +1,5 @@
+--- /dev/null	2025-01-15 17:59:31.105999986 +0100
++++ chromium-132.0.6834.83/third_party/ffmpeg/libavcodec/aarch64/autorename_libavcodec_aarch64_vorbisdsp_init.c	2025-01-07 20:49:01.000000000 +0100
+@@ -0,0 +1,2 @@
++// Automatically generated on Tue Oct 22 17:56:01 2024. See crbug.com/495833.
++#include "vorbisdsp_init.c"

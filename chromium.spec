@@ -331,6 +331,9 @@ Patch151: chromium-131-qt-ui.patch
 # revert, it causes ramdom crash on aarch64
 Patch300: chromium-131-revert-decommit-pooled-pages-by-default.patch
 
+# Workaround for build error on el8 aarch64
+Patch304: chromium-132-el8-ffmpeg.patch
+
 # disable memory tagging (epel8 on aarch64) due to new feature IFUNC-Resolver
 # it is not supported in old glibc < 2.30, error: fatal error: 'sys/ifunc.h' file not found
 Patch305: chromium-124-el8-arm64-memory_tagging.patch
@@ -1043,6 +1046,7 @@ Qt6 UI for chromium.
 
 %if 0%{?rhel} == 8
 %ifarch aarch64
+%patch -P304 -p1 -b .el8-ffmpeg
 %patch -P305 -p1 -b .el8-memory_tagging
 %patch -P306 -p1 -b .el8-ifunc-header
 %endif
