@@ -1047,6 +1047,8 @@ Qt6 UI for chromium.
 %patch -P306 -p1 -b .el8-ifunc-header
 %endif
 %patch -P307 -p1 -b .el8-atk-compiler-error
+%endif
+%if 0%{?rhel} == 8 || 0%{?rhel} == 9
 %patch -P308 -p1 -b .el8-unsupport-clang-flags
 %patch -P309 -p1 -b .el8-unsupport-rustc-flags
 %patch -P310 -p1 -b .el8-clang18-build-error
