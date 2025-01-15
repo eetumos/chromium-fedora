@@ -225,11 +225,11 @@ header_files="	libavcodec/x86/inline_asm.h \
 		libavutil/tx_priv.h \
 		libavutil/version.h \
 		libavutil/sfc64.h \
+		libavutil/executor.h \
 		libswresample/swresample.h \
 		libswresample/version.h \
 		libswresample/version_major.h \
-		compat/va_copy.h \
-		compat/atomics/gcc/stdatomic.h "
+		compat/va_copy.h "
 
 manual_files=" libavcodec/aarch64/h264pred_neon.S \
 		libavcodec/aarch64/hpeldsp_neon.S \
@@ -288,6 +288,7 @@ manual_files=" libavcodec/aarch64/h264pred_neon.S \
 		libavutil/x86/float_dsp_init.c \
 		libavutil/x86/tx_float_init.c \
 		libavutil/aarch64/tx_float_init.c \
+		libavutil/executor.c \
 		libavutil/x86/x86inc.asm \
 		libavutil/x86/x86util.asm "
 

@@ -73,10 +73,11 @@ def delete_chromium_files(files):
   full_path = "%s/%s" % (latest_dir, files)
   print('Deleting ' + full_path + ' ', end=' ')
   for filename in glob.glob(full_path):
-    print('Deleting ' + filename + ' ', end=' ')
-    os.remove(filename)
-    print('[DONE]')
-
+    if os.path.isfile(filename):
+      os.remove(filename)
+      print('[DONE]')
+    else:
+      print('[NOT FOUND]')
 
 def check_omahaproxy(channel="stable"):
 
@@ -320,10 +321,14 @@ if __name__ == '__main__':
                  'third_party/node/linux/node-linux-x64',
                  'third_party/rust-toolchain',
                  'third_party/rust-src']
+    junk_files = ['third_party/node/linux/node-linux-x64.tar.gz']
 
     # First, the dirs:
     for directory in junk_dirs:
       delete_chromium_dir(directory)
+    # Remove junk files
+    for file in junk_files:
+      delete_chromium_files(file)
 
   # There has got to be a better, more portable way to do this.
   os.system("find %s -depth -name reference_build -type d -exec rm -rf {} \\;" % latest_dir)
