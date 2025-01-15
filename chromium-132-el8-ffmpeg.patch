@@ -3,3 +3,8 @@
 @@ -0,0 +1,2 @@
 +// Automatically generated on Tue Oct 22 17:56:01 2024. See crbug.com/495833.
 +#include "vorbisdsp_init.c"
+--- /dev/null	2025-01-15 23:08:30.985344485 +0100
++++ chromium-132.0.6834.83/third_party/ffmpeg/libavutil/aarch64/autorename_libavutil_aarch64_cpu.c	2025-01-07 20:49:01.000000000 +0100
+@@ -0,0 +1,2 @@
++// Automatically generated on Tue Oct 22 17:56:01 2024. See crbug.com/495833.
++#include "cpu.c"
