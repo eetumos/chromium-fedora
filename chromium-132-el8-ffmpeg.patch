@@ -8,3 +8,13 @@
 @@ -0,0 +1,2 @@
 +// Automatically generated on Tue Oct 22 17:56:01 2024. See crbug.com/495833.
 +#include "cpu.c"
+--- /dev/null	2025-01-16 08:50:44.906000351 +0100
++++ chromium-132.0.6834.83/third_party/ffmpeg/libavutil/aarch64/autorename_libavutil_aarch64_float_dsp_init.c	2025-01-07 20:49:01.000000000 +0100
+@@ -0,0 +1,2 @@
++// Automatically generated on Tue Oct 22 17:56:01 2024. See crbug.com/495833.
++#include "float_dsp_init.c"
+--- /dev/null	2025-01-16 08:50:44.906000351 +0100
++++ chromium-132.0.6834.83/third_party/ffmpeg/libavcodec/aarch64/autorename_libavcodec_aarch64_videodsp_init.c	2025-01-07 20:49:01.000000000 +0100
+@@ -0,0 +1,2 @@
++// Automatically generated on Tue Oct 22 17:56:01 2024. See crbug.com/495833.
++#include "videodsp_init.c"
