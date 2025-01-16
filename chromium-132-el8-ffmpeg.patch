@@ -18,3 +18,35 @@
 @@ -0,0 +1,2 @@
 +// Automatically generated on Tue Oct 22 17:56:01 2024. See crbug.com/495833.
 +#include "videodsp_init.c"
+--- /dev/null	2025-01-16 10:42:07.086999986 +0100
++++ chromium-132.0.6834.83/third_party/ffmpeg/libavutil/aarch64/cpu_sve.S	2025-01-07 20:49:01.000000000 +0100
+@@ -0,0 +1,29 @@
++/*
++ * Copyright (c) 2023 Martin Storsjo
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include "config.h"
++#include "asm.S"
++
++ENABLE_SVE
++
++function ff_aarch64_sve_length, export=1
++        cntb            x0
++        ret
++endfunc
