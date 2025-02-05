@@ -183,6 +183,7 @@ header_files="	libavcodec/x86/inline_asm.h \
 		libavformat/iamf_parse.h \
 		libavformat/iamf_reader.h \
 		libavformat/iamf.h \
+		libavformat/dvdclut.h \
 		libavutil/aarch64/cpu.h \
 		libavutil/aarch64/intreadwrite.h \
 		libavutil/x86/asm.h \
@@ -271,6 +272,7 @@ manual_files=" libavcodec/aarch64/h264pred_neon.S \
 		libavformat/pcm.c \
 		libavformat/utils.c \
 		libavformat/version.c \
+		libavformat/dvdclut.c \
 		libavutil/aarch64/asm.S \
 		libavutil/aarch64/cpu.c \
 		libavutil/aarch64/cpu_sve.S \
