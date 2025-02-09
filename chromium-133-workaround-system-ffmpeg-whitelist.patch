@@ -1,0 +1,21 @@
+diff -up chromium-133.0.6943.53/media/ffmpeg/ffmpeg_common.cc.me chromium-133.0.6943.53/media/ffmpeg/ffmpeg_common.cc
+--- chromium-133.0.6943.53/media/ffmpeg/ffmpeg_common.cc.me	2025-02-09 19:57:35.117198035 +0100
++++ chromium-133.0.6943.53/media/ffmpeg/ffmpeg_common.cc	2025-02-09 22:57:26.429570196 +0100
+@@ -76,6 +76,8 @@ const char* GetAllowedVideoDecoders() {
+ void ApplyCodecContextSecuritySettings(AVCodecContext* codec_context) {
+   // Future versions of ffmpeg may copy the allow list from the format
+   // context.
++// Workaround for codec whitelist with system ffmpeg
++#if 0
+   if (!codec_context->codec_whitelist) {
+     // Note: FFmpeg will try to free this string, so we must duplicate it.
+     codec_context->codec_whitelist =
+@@ -83,7 +85,7 @@ void ApplyCodecContextSecuritySettings(A
+                       ? GetAllowedAudioDecoders()
+                       : GetAllowedVideoDecoders());
+   }
+-
++#endif
+   // Note: This is security sensitive. FFmpeg may not always continue safely
+   // in the presence of errors. See https://crbug.com/379418979
+   if (base::FeatureList::IsEnabled(kStrictFFmpegCodecs)) {
