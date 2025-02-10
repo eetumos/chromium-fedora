@@ -341,6 +341,8 @@ Patch311: chromium-133-clang18-template.patch
 
 # enable fstack-protector-strong
 Patch312: chromium-123-fstack-protector-strong.patch
+# build error stdarch_arm_crc32
+Patch313: chromium-133-rust-crc32fast.patch
 
 # add -ftrivial-auto-var-init=zero and -fwrapv
 Patch316: chromium-122-clang-build-flags.patch
@@ -1035,6 +1037,12 @@ Qt6 UI for chromium.
 %endif
 
 %patch -P312 -p1 -b .fstack-protector-strong
+
+%ifarch aarch64
+%if 0%{?rhel} == 8 || 0%{?rhel} == 9
+%patch -P313 -p1 -b .rust-crc32fast.patch
+%endif
+%endif
 
 %patch -P316 -p1 -b .clang-build-flags
 
