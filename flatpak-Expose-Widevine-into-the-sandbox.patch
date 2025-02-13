@@ -3,16 +3,9 @@ From: Ryan Gonzalez <rymg19@gmail.com>
 Date: Tue, 17 Nov 2020 13:00:39 -0600
 Subject: [PATCH] flatpak: Expose Widevine into the sandbox
 
----
- .../zygote_host/zygote_host_impl_linux.cc     | 54 +++++++++++++-
- sandbox/linux/services/flatpak_sandbox.cc     | 74 ++++++++++++++-----
- sandbox/linux/services/flatpak_sandbox.h      | 27 ++++++-
- 3 files changed, 131 insertions(+), 24 deletions(-)
-
-diff --git a/content/browser/zygote_host/zygote_host_impl_linux.cc b/content/browser/zygote_host/zygote_host_impl_linux.cc
-index 1703fb6ade044..3e8eb87981230 100644
---- a/content/browser/zygote_host/zygote_host_impl_linux.cc
-+++ b/content/browser/zygote_host/zygote_host_impl_linux.cc
+diff -up chromium-133.0.6943.98/content/browser/zygote_host/zygote_host_impl_linux.cc.me chromium-133.0.6943.98/content/browser/zygote_host/zygote_host_impl_linux.cc
+--- chromium-133.0.6943.98/content/browser/zygote_host/zygote_host_impl_linux.cc.me	2025-02-13 15:25:34.040044876 +0100
++++ chromium-133.0.6943.98/content/browser/zygote_host/zygote_host_impl_linux.cc	2025-02-13 17:19:22.030423834 +0100
 @@ -9,7 +9,10 @@
  #include <sys/types.h>
  
@@ -24,10 +17,10 @@ index 1703fb6ade044..3e8eb87981230 100644
  #include "base/posix/unix_domain_socket.h"
  #include "base/process/kill.h"
  #include "base/process/launch.h"
-@@ -18,9 +21,12 @@
+@@ -17,9 +20,12 @@
+ #include "base/strings/string_number_conversions.h"
  #include "base/types/fixed_array.h"
  #include "build/build_config.h"
- #include "build/chromeos_buildflags.h"
 +#include "chrome/common/chrome_paths.h"  // nogncheck
  #include "content/common/zygote/zygote_commands_linux.h"
  #include "content/common/zygote/zygote_communication_linux.h"
@@ -37,7 +30,7 @@ index 1703fb6ade044..3e8eb87981230 100644
  #include "content/public/common/zygote/zygote_handle.h"
  #include "sandbox/linux/services/credentials.h"
  #include "sandbox/linux/services/flatpak_sandbox.h"
-@@ -29,6 +35,7 @@
+@@ -28,6 +34,7 @@
  #include "sandbox/linux/suid/common/sandbox.h"
  #include "sandbox/policy/linux/sandbox_linux.h"
  #include "sandbox/policy/switches.h"
@@ -45,7 +38,7 @@ index 1703fb6ade044..3e8eb87981230 100644
  
  #if BUILDFLAG(IS_CHROMEOS)
  #include "content/common/zygote/zygote_communication_linux.h"
-@@ -193,8 +200,51 @@ pid_t ZygoteHostImpl::LaunchZygote(
+@@ -192,8 +199,51 @@ pid_t ZygoteHostImpl::LaunchZygote(
    if (is_sandboxed_zygote && use_namespace_sandbox_) {
      process = sandbox::NamespaceSandbox::LaunchProcess(*cmd_line, options);
    } else if (is_sandboxed_zygote && use_flatpak_sandbox_) {
@@ -99,10 +92,9 @@ index 1703fb6ade044..3e8eb87981230 100644
    } else {
      process = base::LaunchProcess(*cmd_line, options);
    }
-diff --git a/sandbox/linux/services/flatpak_sandbox.cc b/sandbox/linux/services/flatpak_sandbox.cc
-index 2a915a5b9fa11..ed8d4c0556f63 100644
---- a/sandbox/linux/services/flatpak_sandbox.cc
-+++ b/sandbox/linux/services/flatpak_sandbox.cc
+diff -up chromium-133.0.6943.98/sandbox/linux/services/flatpak_sandbox.cc.me chromium-133.0.6943.98/sandbox/linux/services/flatpak_sandbox.cc
+--- chromium-133.0.6943.98/sandbox/linux/services/flatpak_sandbox.cc.me	2025-02-13 15:25:34.048045104 +0100
++++ chromium-133.0.6943.98/sandbox/linux/services/flatpak_sandbox.cc	2025-02-13 17:14:05.784569012 +0100
 @@ -4,6 +4,7 @@
  
  #include "sandbox/linux/services/flatpak_sandbox.h"
@@ -130,7 +122,7 @@ index 2a915a5b9fa11..ed8d4c0556f63 100644
  FlatpakSandbox::FlatpakSandbox()
      : bus_thread_("FlatpakPortalBus"), process_info_cv_(&process_info_lock_) {}
  
-@@ -168,8 +181,9 @@ bool FlatpakSandbox::IsPidSandboxed(base::ProcessId relative_pid) {
+@@ -168,8 +181,9 @@ bool FlatpakSandbox::IsPidSandboxed(base
  
  base::Process FlatpakSandbox::LaunchProcess(
      const base::CommandLine& cmdline,
@@ -142,7 +134,7 @@ index 2a915a5b9fa11..ed8d4c0556f63 100644
    if (external_pid == base::kNullProcessId) {
      return base::Process();
    }
-@@ -363,9 +377,9 @@ void FlatpakSandbox::OnSpawnExitedSignal(dbus::Signal* signal) {
+@@ -363,9 +377,9 @@ void FlatpakSandbox::OnSpawnExitedSignal
    process_info_cv_.Broadcast();
  }
  
@@ -260,10 +252,9 @@ index 2a915a5b9fa11..ed8d4c0556f63 100644
    if (sandbox_flags != 0) {
      dbus::MessageWriter entry_writer(nullptr);
      options_writer.OpenDictEntry(&entry_writer);
-diff --git a/sandbox/linux/services/flatpak_sandbox.h b/sandbox/linux/services/flatpak_sandbox.h
-index 167bbc85945ad..de8e7165b4573 100644
---- a/sandbox/linux/services/flatpak_sandbox.h
-+++ b/sandbox/linux/services/flatpak_sandbox.h
+diff -up chromium-133.0.6943.98/sandbox/linux/services/flatpak_sandbox.h.me chromium-133.0.6943.98/sandbox/linux/services/flatpak_sandbox.h
+--- chromium-133.0.6943.98/sandbox/linux/services/flatpak_sandbox.h.me	2025-02-13 15:25:34.048045104 +0100
++++ chromium-133.0.6943.98/sandbox/linux/services/flatpak_sandbox.h	2025-02-13 17:14:05.784569012 +0100
 @@ -9,6 +9,8 @@
  #include "base/compiler_specific.h"
  #include "base/containers/flat_map.h"
@@ -321,6 +312,3 @@ index 167bbc85945ad..de8e7165b4573 100644
    void OnSpawnResponse(base::ProcessId* out_external_pid,
                         base::WaitableEvent* event,
                         dbus::Response* response,
--- 
-2.46.1
-
