@@ -1251,7 +1251,7 @@ rust_sysroot_absolute="$(rustc --print sysroot)"
 
 # set clang version
 clang_version="$(clang --version | sed -n 's/clang version //p' | cut -d. -f1)"
-%if 0%{?fedora} > 42
+%if 0%{?fedora} > 41
 clang_base_path="/usr"
 %else
 clang_base_path="$(clang --version | grep InstalledDir | cut -d' ' -f2 | sed 's#/bin##')"
