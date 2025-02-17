@@ -48,4 +48,4 @@ exec < /dev/null
 exec > >(exec cat)
 exec 2> >(exec cat >&2)
 
-exec -a "$0" "$HERE/@@CHROMIUM_BROWSER_CHANNEL@@" $CHROMIUM_FLAGS $CHROMIUM_DISTRO_FLAGS "$@"
+exec -a "$0" "$HERE/chromium-browser" $CHROMIUM_FLAGS $CHROMIUM_DISTRO_FLAGS "$@"
