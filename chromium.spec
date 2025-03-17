@@ -1057,7 +1057,7 @@ Qt6 UI for chromium.
 
 %patch -P355 -p1 -b .hardware_destructive_interference_size
 
-%if 0%{?fedora} > 42
+%if 0%{?fedora} > 41
 %patch -P356 -p1 -b .pipewire-cast
 %endif
 
@@ -1210,8 +1210,10 @@ CXXFLAGS="$FLAGS"
 
 %ifarch ppc64le
 CXXFLAGS+=' -faltivec-src-compat=mixed -Wno-deprecated-altivec-src-compat'
+%if 0%{?fedora} > 41
 # Workaround for build error: Undefined temporary symbol .L_MergedGlobals.15
 CXXFLAGS+=' -O0'
+%endif
 %endif
 
 export CC=clang
