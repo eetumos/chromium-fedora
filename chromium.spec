@@ -262,7 +262,7 @@
 
 Name:	chromium
 Version: 134.0.6998.88 
-Release: 3%{?dist}
+Release: 4%{?dist}
 Summary: A WebKit (Blink) powered web browser that Google doesn't want you to use
 Url: http://www.chromium.org/Home
 License: BSD-3-Clause AND LGPL-2.1-or-later AND Apache-2.0 AND IJG AND MIT AND GPL-2.0-or-later AND ISC AND OpenSSL AND (MPL-1.1 OR GPL-2.0-only OR LGPL-2.0-only)
@@ -1766,6 +1766,9 @@ fi
 %endif
 
 %changelog
+* Mon Mar 17 2025 Than Ngo <than@redhat.com> -  134.0.6998.88 -4
+- Fixed rhbz#2352698, rebuild for noopenh264 2.6.0
+
 * Fri Mar 14 2025 Than Ngo <than@redhat.com> -  134.0.6998.88-3
 - Fixed build errors on ppc64le
 
