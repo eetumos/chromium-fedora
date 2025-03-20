@@ -32,7 +32,7 @@ diff -up chromium-125.0.6422.41/ui/base/resource/resource_bundle.cc.system-brotl
  #include "skia/ext/image_operations.h"
  #include "third_party/abseil-cpp/absl/types/variant.h"
 -#include "third_party/brotli/include/brotli/decode.h"
-+#include "brotli/decode.h"
++#include <brotli/decode.h>
  #include "third_party/skia/include/codec/SkPngDecoder.h"
  #include "third_party/skia/include/core/SkBitmap.h"
  #include "third_party/skia/include/core/SkColor.h"
