@@ -261,7 +261,7 @@
 %endif
 
 Name:	chromium
-Version: 134.0.6998.117 
+Version: 134.0.6998.165
 Release: 1%{?dist}
 Summary: A WebKit (Blink) powered web browser that Google doesn't want you to use
 Url: http://www.chromium.org/Home
@@ -785,9 +785,9 @@ Requires: u2f-hidraw-policy
 
 Requires: chromium-common%{_isa} = %{version}-%{release}
 
-# rhel 8 or newer and fedora < 40: x86_64, aarch64
-# fedora 40 or newer: x86_64, aarch64, ppc64le
-%if 0%{?fedora} >= 40
+# el9: x86_64, aarch64
+# el10, fedora: x86_64, aarch64, ppc64le
+%if 0%{?fedora} || 0%{?rhel} >= 10
 ExclusiveArch: x86_64 aarch64 ppc64le
 %else
 ExclusiveArch: x86_64 aarch64
@@ -1762,6 +1762,10 @@ fi
 %endif
 
 %changelog
+* Mon Mar 24 2025 Than Ngo <than@redhat.com> - 134.0.6998.165-1
+- Update to 134.0.6998.165
+- Fixed rhbz#2354377 - Enable ppc64le support for el10
+
 * Thu Mar 20 2025 Than Ngo <than@redhat.com> -  134.0.6998.117-1
 - Update to 134.0.6998.117
   * Critical CVE-2025-2476: Use after free in Lens
