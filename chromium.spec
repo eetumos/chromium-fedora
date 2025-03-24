@@ -474,14 +474,15 @@ Source12: https://nodejs.org/dist/%{nodejs_version}/node-%{nodejs_version}-linux
 Source13: https://nodejs.org/dist/%{nodejs_version}/node-%{nodejs_version}-linux-arm64.tar.xz
 %endif
 
-# esbuild binary
-%if 0%{?rhel}
+# esbuild binary from https://github.com/evanw/esbuild
+%if 0%{?rhel} && 0%{?rhel} < 10
 Source14: https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-%{esbuild_version}.tgz
 Source15: https://registry.npmjs.org/@esbuild/linux-arm64/-/linux-arm64-%{esbuild_version}.tgz
+Source16: https://registry.npmjs.org/@esbuild/linux-ppc64/-/linux-ppc64-%{esbuild_version}.tgz
 %endif
 
-# esbuild binary from fedora
-%if 0%{?fedora}
+# esbuild binary from fedora/el10
+%if 0%{?fedora} || 0%{?rhel} > 9
 BuildRequires: golang-github-evanw-esbuild
 %endif
 
@@ -1150,7 +1151,7 @@ popd
 %endif
 
 # Get rid of the bundled esbuild
-%if 0%{?fedora}
+%if 0%{?fedora} || 0%{?rhel} > 9
   ln -sf $(which esbuild) third_party/devtools-frontend/src/third_party/esbuild/esbuild
 %else
   %ifarch x86_64
@@ -1158,6 +1159,9 @@ popd
   %endif
   %ifarch aarch64
     tar -zxf %{SOURCE15} --directory %{_tmppath}
+  %endif
+  %ifarch ppc64le
+    tar -zxf %{SOURCE16} --directory %{_tmppath}
   %endif
   mv %{_tmppath}/package/bin/esbuild third_party/devtools-frontend/src/third_party/esbuild/esbuild
 %endif
