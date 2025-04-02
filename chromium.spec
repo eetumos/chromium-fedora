@@ -51,11 +51,11 @@
 %endif
 
 # set nodejs_version
-%global nodejs_version v20.6.1
+%global nodejs_version v22.14.0
 
 %global system_nodejs 1
-# RHEL 8 needs newer nodejs
-%if 0%{?rhel} == 8
+# RHEL 9 needs newer nodejs
+%if 0%{?rhel} == 9
 %global system_nodejs 0
 %endif
 
@@ -476,13 +476,14 @@ Source11: master_preferences
 %if ! %{system_nodejs}
 Source12: https://nodejs.org/dist/%{nodejs_version}/node-%{nodejs_version}-linux-x64.tar.xz
 Source13: https://nodejs.org/dist/%{nodejs_version}/node-%{nodejs_version}-linux-arm64.tar.xz
+Source14: https://nodejs.org/dist/%{nodejs_version}/node-%{nodejs_version}-linux-ppc64le.tar.xz
 %endif
 
 # esbuild binary from https://github.com/evanw/esbuild
 %if 0%{?rhel} && 0%{?rhel} < 10
-Source14: https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-%{esbuild_version}.tgz
-Source15: https://registry.npmjs.org/@esbuild/linux-arm64/-/linux-arm64-%{esbuild_version}.tgz
-Source16: https://registry.npmjs.org/@esbuild/linux-ppc64/-/linux-ppc64-%{esbuild_version}.tgz
+Source15: https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-%{esbuild_version}.tgz
+Source16: https://registry.npmjs.org/@esbuild/linux-arm64/-/linux-arm64-%{esbuild_version}.tgz
+Source17: https://registry.npmjs.org/@esbuild/linux-ppc64/-/linux-ppc64-%{esbuild_version}.tgz
 %endif
 
 # esbuild binary from fedora/el10
@@ -1144,13 +1145,17 @@ find -type f \( -iname "*.py" \) -exec sed -i '1s=^#! */usr/bin/\(python\|env py
   pushd third_party/node/linux
 %ifarch x86_64
   tar xf %{SOURCE12}
-  mv node-%{nodejs_version}-linux-x64 node-linux-x64
+  ln -s node-%{nodejs_version}-linux-x64 node-linux-x64
 %endif
 %ifarch aarch64
   tar xf %{SOURCE13}
-  mv node-%{nodejs_version}-linux-arm64 node-linux-arm64
   # This is weird, but whatever
-  ln -s node-linux-arm64 node-linux-x64
+  ln -s  node-%{nodejs_version}-linux-arm64 node-linux-x64
+%endif
+%ifarch ppc64le
+  tar xf %{SOURCE14}
+  # This is weird, but whatever
+  ln -s node-%{nodejs_version}-linux-ppc64le node-linux-x64
 %endif
 popd
 %else
@@ -1163,13 +1168,13 @@ popd
   ln -sf $(which esbuild) third_party/devtools-frontend/src/third_party/esbuild/esbuild
 %else
   %ifarch x86_64
-    tar -zxf %{SOURCE14} --directory %{_tmppath}
-  %endif
-  %ifarch aarch64
     tar -zxf %{SOURCE15} --directory %{_tmppath}
   %endif
-  %ifarch ppc64le
+  %ifarch aarch64
     tar -zxf %{SOURCE16} --directory %{_tmppath}
+  %endif
+  %ifarch ppc64le
+    tar -zxf %{SOURCE17} --directory %{_tmppath}
   %endif
   mv %{_tmppath}/package/bin/esbuild third_party/devtools-frontend/src/third_party/esbuild/esbuild
 %endif
