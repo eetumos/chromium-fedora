@@ -1,35 +1,20 @@
-diff -up chromium-127.0.6533.72/build/rust/rust_bindgen.gni.me chromium-127.0.6533.72/build/rust/rust_bindgen.gni
---- chromium-127.0.6533.72/build/rust/rust_bindgen.gni.me	2024-07-25 16:11:18.754551595 +0200
-+++ chromium-127.0.6533.72/build/rust/rust_bindgen.gni	2024-07-25 16:11:33.997837660 +0200
-@@ -19,11 +19,11 @@
- 
- # On Windows, the libclang.dll is beside the bindgen.exe, otherwise it is in
- # ../lib.
--_libclang_path = rust_bindgen_root
-+_libclang_path = clang_base_path
- if (host_os == "win") {
-   _libclang_path += "/bin"
- } else {
--  _libclang_path += "/lib"
-+  _libclang_path += "/lib64"
- }
- 
- # Template to build Rust/C bindings with bindgen.
-diff -up chromium-121.0.6167.57/build/config/clang/BUILD.gn.rust-clang_lib chromium-121.0.6167.57/build/config/clang/BUILD.gn
---- chromium-121.0.6167.57/build/config/clang/BUILD.gn.rust-clang_lib	2024-01-10 16:43:01.000000000 +0100
-+++ chromium-121.0.6167.57/build/config/clang/BUILD.gn	2024-01-20 19:51:38.481992799 +0100
-@@ -112,6 +112,7 @@ template("clang_lib") {
+diff -up chromium-135.0.7049.84/build/config/clang/BUILD.gn.than chromium-135.0.7049.84/build/config/clang/BUILD.gn
+--- chromium-135.0.7049.84/build/config/clang/BUILD.gn.than	2025-04-09 10:22:51.699058451 +0200
++++ chromium-135.0.7049.84/build/config/clang/BUILD.gn	2025-04-09 10:43:06.524085005 +0200
+@@ -166,8 +166,8 @@ template("clang_lib") {
        _prefix = "lib"
        _suffix = ""
        _ext = "a"
 +      _libprefix = ""
+ 
+-      _clang_lib_dir = "$clang_base_path/lib/clang/$clang_version/lib"
        if (is_win) {
          _dir = "windows"
          _prefix = ""
-@@ -127,7 +128,33 @@ template("clang_lib") {
+@@ -197,7 +197,33 @@ template("clang_lib") {
+         } else {
+           assert(false)  # Unhandled cpu type
          }
-       } else if (is_apple) {
-         _dir = "darwin"
 -      } else if (is_linux || is_chromeos) {
 +      } else if (is_linux) {
 +        if (current_cpu == "x64") {
@@ -61,19 +46,35 @@ diff -up chromium-121.0.6167.57/build/config/clang/BUILD.gn.rust-clang_lib chrom
          if (current_cpu == "x64") {
            _dir = "x86_64-unknown-linux-gnu"
          } else if (current_cpu == "x86") {
-@@ -166,7 +193,7 @@ template("clang_lib") {
+@@ -236,6 +262,7 @@ template("clang_lib") {
          assert(false)  # Unhandled target platform
        }
  
--      _clang_lib_dir = "$clang_base_path/lib/clang/$clang_version/lib"
 +      _clang_lib_dir = "$clang_base_path/lib${_libprefix}/clang/$clang_version/lib"
        _lib_file = "${_prefix}clang_rt.${_libname}${_suffix}.${_ext}"
        libs = [ "$_clang_lib_dir/$_dir/$_lib_file" ]
-     }
-diff -up chromium-132.0.6834.57/build/rust/rust_bindgen_generator.gni.me chromium-132.0.6834.57/build/rust/rust_bindgen_generator.gni
---- chromium-132.0.6834.57/build/rust/rust_bindgen_generator.gni.me	2024-12-31 15:08:27.013151672 +0100
-+++ chromium-132.0.6834.57/build/rust/rust_bindgen_generator.gni	2024-12-31 15:08:49.538663024 +0100
-@@ -18,11 +18,11 @@
+ 
+diff -up chromium-135.0.7049.84/build/rust/rust_bindgen_generator.gni.than chromium-135.0.7049.84/build/rust/rust_bindgen_generator.gni
+--- chromium-135.0.7049.84/build/rust/rust_bindgen_generator.gni.than	2025-04-09 10:46:48.772413981 +0200
++++ chromium-135.0.7049.84/build/rust/rust_bindgen_generator.gni	2025-04-09 10:47:15.480900587 +0200
+@@ -18,11 +18,11 @@ if (host_os == "win") {
+ 
+ # On Windows, the libclang.dll is beside the bindgen.exe, otherwise it is in
+ # ../lib.
+-_libclang_path = rust_bindgen_root
++_libclang_path = clang_base_path
+ if (host_os == "win") {
+   _libclang_path += "/bin"
+ } else {
+-  _libclang_path += "/lib"
++  _libclang_path += "/lib64"
+ }
+ 
+ # Template to build Rust/C bindings with bindgen.
+diff -up chromium-135.0.7049.84/build/rust/rust_bindgen.gni.than chromium-135.0.7049.84/build/rust/rust_bindgen.gni
+--- chromium-135.0.7049.84/build/rust/rust_bindgen.gni.than	2025-04-09 10:45:53.577078718 +0200
++++ chromium-135.0.7049.84/build/rust/rust_bindgen.gni	2025-04-09 10:46:29.974649891 +0200
+@@ -19,11 +19,11 @@ if (host_os == "win") {
  
  # On Windows, the libclang.dll is beside the bindgen.exe, otherwise it is in
  # ../lib.
