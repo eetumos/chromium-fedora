@@ -1,6 +1,21 @@
-diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64 chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
---- chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64	2025-03-12 02:09:02.000000000 +0100
-+++ chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc	2025-03-19 16:20:41.392330750 +0100
+From da52663deec77f705d7d58b18484c3e28e563f10 Mon Sep 17 00:00:00 2001
+From: Shawn Anastasio <shawnanastasio@yahoo.com>
+Date: Tue, 18 Sep 2018 18:39:28 -0500
+Subject: [PATCH] sandbox/linux: Update syscall helpers/lists for ppc64
+
+---
+ .../seccomp-bpf-helpers/baseline_policy.cc    |   8 +-
+ .../syscall_parameters_restrictions.cc        |   2 +-
+ .../syscall_parameters_restrictions.h         |   2 +-
+ .../linux/seccomp-bpf-helpers/syscall_sets.cc | 108 ++++++++++--------
+ .../linux/seccomp-bpf-helpers/syscall_sets.h  |   6 +-
+ sandbox/linux/services/syscall_wrappers.cc    |   2 +-
+ 6 files changed, 73 insertions(+), 55 deletions(-)
+
+Index: chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
+===================================================================
+--- chromium-136.0.7103.48.orig/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
++++ chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
 @@ -90,7 +90,8 @@ bool IsBaselinePolicyWatched(int sysno)
           SyscallSets::IsPrctl(sysno) ||
           SyscallSets::IsProcessGroupOrSession(sysno) ||
@@ -39,19 +54,20 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/baseline_polic
    if (SyscallSets::IsSocketCall(sysno))
      return RestrictSocketcallCommand();
  #endif
-diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64 chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
---- chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64	2025-03-12 02:09:02.000000000 +0100
-+++ chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc	2025-03-19 16:24:53.188175179 +0100
-@@ -35,7 +35,7 @@
+Index: chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
+===================================================================
+--- chromium-136.0.7103.48.orig/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
++++ chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
+@@ -36,7 +36,7 @@
+ #include "sandbox/linux/system_headers/linux_syscalls.h"
  #include "sandbox/linux/system_headers/linux_time.h"
  
- #if BUILDFLAG(IS_LINUX) && !defined(__arm__) && !defined(__aarch64__) && \
--    !defined(PTRACE_GET_THREAD_AREA)
-+    !defined(__powerpc64__) && !defined(PTRACE_GET_THREAD_AREA)
+-#if BUILDFLAG(IS_LINUX) && !defined(__arm__) && !defined(__aarch64__) && \
++#if BUILDFLAG(IS_LINUX) && !defined(__arm__) && !defined(__aarch64__) && !defined(__powerpc64__) && \
+     !defined(PTRACE_GET_THREAD_AREA)
  // Also include asm/ptrace-abi.h since ptrace.h in older libc (for instance
  // the one in Ubuntu 16.04 LTS) is missing PTRACE_GET_THREAD_AREA.
- // asm/ptrace-abi.h doesn't exist on arm32 and PTRACE_GET_THREAD_AREA isn't
-@@ -43,6 +43,11 @@
+@@ -45,6 +45,11 @@
  #include <asm/ptrace-abi.h>
  #endif
  
@@ -63,7 +79,7 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parame
  #if BUILDFLAG(IS_ANDROID)
  
  #if !defined(F_DUPFD_CLOEXEC)
-@@ -100,6 +105,15 @@ inline bool IsArchitectureMips() {
+@@ -102,6 +107,15 @@ inline bool IsArchitectureMips() {
  #endif
  }
  
@@ -79,7 +95,7 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parame
  // Ubuntu's version of glibc has a race condition in sem_post that can cause
  // it to call futex(2) with bogus op arguments. To workaround this, we need
  // to allow those futex(2) calls to fail with EINVAL, instead of crashing the
-@@ -267,9 +281,11 @@ ResultExpr RestrictFcntlCommands() {
+@@ -269,9 +283,11 @@ ResultExpr RestrictFcntlCommands() {
    // operator.
    // Glibc overrides the kernel's O_LARGEFILE value. Account for this.
    uint64_t kOLargeFileFlag = O_LARGEFILE;
@@ -92,7 +108,7 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parame
    const Arg<int> cmd(1);
    const Arg<long> long_arg(2);
  
-@@ -292,8 +308,17 @@ ResultExpr RestrictFcntlCommands() {
+@@ -294,8 +310,17 @@ ResultExpr RestrictFcntlCommands() {
                F_SETLKW,
                F_GETLK,
                F_DUPFD,
@@ -112,7 +128,7 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parame
        .Case(F_SETFL,
              If((long_arg & ~kAllowedMask) == 0, Allow()).Else(CrashSIGSYS()))
        .Case(F_ADD_SEALS,
-@@ -302,7 +327,7 @@ ResultExpr RestrictFcntlCommands() {
+@@ -304,7 +329,7 @@ ResultExpr RestrictFcntlCommands() {
    // clang-format on
  }
  
@@ -121,7 +137,7 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parame
  ResultExpr RestrictSocketcallCommand() {
    // Unfortunately, we are unable to restrict the first parameter to
    // socketpair(2). Whilst initially sounding bad, it's noteworthy that very
-@@ -459,7 +484,7 @@ ResultExpr RestrictPtrace() {
+@@ -470,7 +495,7 @@ ResultExpr RestrictPtrace() {
  #endif
    return Switch(request)
        .Cases({
@@ -130,9 +146,10 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parame
                   PTRACE_GETREGS, PTRACE_GETFPREGS, PTRACE_GET_THREAD_AREA,
                   PTRACE_GETREGSET,
  #endif
-diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.h.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64 chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.h
---- chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.h.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64	2025-03-12 02:09:02.000000000 +0100
-+++ chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.h	2025-03-19 16:20:41.397390842 +0100
+Index: chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.h
+===================================================================
+--- chromium-136.0.7103.48.orig/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.h
++++ chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.h
 @@ -52,7 +52,7 @@ SANDBOX_EXPORT bpf_dsl::ResultExpr Restr
  // O_NONBLOCK | O_SYNC | O_LARGEFILE | O_CLOEXEC | O_NOATIME.
  SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictFcntlCommands();
@@ -142,9 +159,10 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_parame
  // Restrict socketcall(2) to only allow socketpair(2), send(2), recv(2),
  // sendto(2), recvfrom(2), shutdown(2), sendmsg(2) and recvmsg(2).
  SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictSocketcallCommand();
-diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64 chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
---- chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64	2025-03-12 02:09:02.000000000 +0100
-+++ chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc	2025-03-19 16:20:41.400744223 +0100
+Index: chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
+===================================================================
+--- chromium-136.0.7103.48.orig/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
++++ chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
 @@ -29,7 +29,8 @@ bool SyscallSets::IsAllowedGettime(int s
    switch (sysno) {
      case __NR_gettimeofday:
@@ -564,9 +582,10 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.c
      case __NR_vserver:
  #endif
        return true;
-diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64 chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h
---- chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64	2025-03-12 02:09:02.000000000 +0100
-+++ chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h	2025-03-19 16:20:41.401408385 +0100
+Index: chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h
+===================================================================
+--- chromium-136.0.7103.48.orig/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h
++++ chromium-136.0.7103.48/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h
 @@ -46,13 +46,14 @@ class SANDBOX_EXPORT SyscallSets {
    static bool IsDeniedGetOrModifySocket(int sysno);
  
@@ -604,9 +623,10 @@ diff -up chromium-135.0.7049.17/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h
    // Big system V multiplexing system call.
    static bool IsSystemVIpc(int sysno);
  #endif
-diff -up chromium-135.0.7049.17/sandbox/linux/services/syscall_wrappers.cc.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64 chromium-135.0.7049.17/sandbox/linux/services/syscall_wrappers.cc
---- chromium-135.0.7049.17/sandbox/linux/services/syscall_wrappers.cc.0001-sandbox-linux-Update-syscall-helpers-lists-for-ppc64	2025-03-12 02:09:02.000000000 +0100
-+++ chromium-135.0.7049.17/sandbox/linux/services/syscall_wrappers.cc	2025-03-19 16:20:41.401536979 +0100
+Index: chromium-136.0.7103.48/sandbox/linux/services/syscall_wrappers.cc
+===================================================================
+--- chromium-136.0.7103.48.orig/sandbox/linux/services/syscall_wrappers.cc
++++ chromium-136.0.7103.48/sandbox/linux/services/syscall_wrappers.cc
 @@ -66,7 +66,7 @@ long sys_clone(unsigned long flags,
  #if defined(ARCH_CPU_X86_64)
    return syscall(__NR_clone, flags, child_stack, ptid, ctid, tls);
