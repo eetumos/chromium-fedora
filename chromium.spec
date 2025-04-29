@@ -255,7 +255,7 @@
 %endif
 
 Name:	chromium
-Version: 136.0.7103.48
+Version: 136.0.7103.59
 Release: 1%{?dist}
 Summary: A WebKit (Blink) powered web browser that Google doesn't want you to use
 Url: http://www.chromium.org/Home
@@ -1262,8 +1262,8 @@ sed -i 's|OFFICIAL_BUILD|GOOGLE_CHROME_BUILD|g' tools/generate_shim_headers/gene
 
 CHROMIUM_CORE_GN_DEFINES+=' chrome_pgo_phase=0'
 
-%if %{cfi}
-CHROMIUM_CORE_GN_DEFINES+=' is_cfi=true use_cfi_icall=true use_cfi_cast=true use_thin_lto=true'
+%if ! %{cfi}
+CHROMIUM_CORE_GN_DEFINES+=' is_cfi=false use_thin_lto=false'
 %endif
 
 %if %{useapikey}
@@ -1769,6 +1769,13 @@ fi
 %endif
 
 %changelog
+* Tue Apr 29 2025 Than Ngo <than@redhat.com> - 136.0.7103.59-1
+- Update to 136.0.7103.59
+  * CVE-2025-4096: Heap buffer overflow in HTML
+  * CVE-2025-4050: Out of bounds memory access in DevTools
+  * CVE-2025-4051: Insufficient data validation in DevTools
+  * CVE-2025-4052: Inappropriate implementation in DevTools
+
 * Thu Apr 24 2025 Than Ngo <than@redhat.com> - 136.0.7103.48-1
 - Update to 136.0.7103.48
 
