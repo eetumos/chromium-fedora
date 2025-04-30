@@ -1,0 +1,11 @@
+diff -up chromium-136.0.7103.59/third_party/xnnpack/BUILD.gn.than chromium-136.0.7103.59/third_party/xnnpack/BUILD.gn
+--- chromium-136.0.7103.59/third_party/xnnpack/BUILD.gn.than	2025-04-30 17:40:49.303107833 +0200
++++ chromium-136.0.7103.59/third_party/xnnpack/BUILD.gn	2025-04-30 17:51:06.934912263 +0200
+@@ -28,6 +28,7 @@ config("xnnpack_config") {
+   cflags = [
+     "-Wno-unused-function",
+     "-Wno-deprecated-comma-subscript",
++    "-O0",
+   ]
+ 
+   defines = [

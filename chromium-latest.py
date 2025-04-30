@@ -358,6 +358,6 @@ if __name__ == '__main__':
   if (not args.prep):
     print("Compressing cleaned tree, please wait...")
     os.chdir(chromium_root_dir)
-    os.system("tar --exclude=\\.svn -cf - chromium-%s | xz -9 -T 0 -f > %s" % (chromium_version, chromium_clean_xz_file))
+    os.system("tar --exclude=\\.svn -cf - chromium-%s | xz -6 -T0 -f > %s" % (chromium_version, chromium_clean_xz_file))
 
   print("Finished!")

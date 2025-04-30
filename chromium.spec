@@ -341,6 +341,9 @@ Patch315: chromium-134-rust-libadler2.patch
 # add -ftrivial-auto-var-init=zero and -fwrapv
 Patch316: chromium-122-clang-build-flags.patch
 
+# Workaround for clang crash due to old clang-18.x on x86_64 el9/fedora40
+Patch317: chromium-136-cnnpack-clang18-crash-x86_64.patch
+
 # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=2239523
 # https://bugs.chromium.org/p/chromium/issues/detail?id=1145581#c60
 # Disable BTI until this is fixed upstream.
@@ -1033,6 +1036,9 @@ Qt6 UI for chromium.
 %patch -P309 -p1 -b .el8-unsupport-rustc-flags
 %patch -P310 -p1 -b .el8-clang18-build-error
 %patch -P311 -p1 -b .clang18-template
+%ifarch x86_64
+%patch -P317 -p1 -b .xnnpack-clang18-crash-x86_64
+%endif
 %endif
 
 %patch -P312 -p1 -b .fstack-protector-strong
