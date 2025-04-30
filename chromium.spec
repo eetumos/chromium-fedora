@@ -1308,8 +1308,8 @@ CHROMIUM_CORE_GN_DEFINES+=' symbol_level=%{debug_level} blink_symbol_level=%{deb
 CHROMIUM_CORE_GN_DEFINES+=' angle_has_histograms=false'
 # drop unrar
 CHROMIUM_CORE_GN_DEFINES+=' safe_browsing_use_unrar=false'
-# Disable --warning-suppression-mappings as it causes FTBFS on el9/f40 due to old llvm
-%if 0%{?rhel} == 9 || 0%{?fedora} == 40
+# Disable --warning-suppression-mappings as it causes FTBFS on el/f40/f41 due to old llvm
+%if 0%{?rhel} || 0%{?fedora} == 40 || 0%{?fedora} == 41
 CHROMIUM_CORE_GN_DEFINES+=' clang_warning_suppression_file=""'
 %endif
 export CHROMIUM_CORE_GN_DEFINES
