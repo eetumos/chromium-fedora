@@ -323,8 +323,11 @@ if __name__ == '__main__':
                  'build/linux/debian_bullseye_i386-sysroot',
                  'third_party/node/linux/node-linux-x64',
                  'third_party/rust-toolchain',
-                 'third_party/rust-src']
-    junk_files = ['third_party/node/linux/node-linux-x64.tar.gz']
+                 'third_party/rust-src',
+                 'third_party/devtools-frontend/src/third_party/esbuild']
+    junk_files = ['third_party/node/linux/node-linux-x64.tar.gz',
+                  'buildtools/third_party/eu-strip/bin/eu-strip',
+                  'buildtools/linux64/gn']
 
     # First, the dirs:
     for directory in junk_dirs:
