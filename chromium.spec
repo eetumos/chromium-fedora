@@ -1513,7 +1513,7 @@ system_libs=()
 %if 0%{?noopenh264}
 	system_libs+=(openh264)
 %endif
-%if ! {bundlesimdutf}
+%if ! %{bundlesimdutf}
    system_libs+=(simdutf)
 %endif
 
