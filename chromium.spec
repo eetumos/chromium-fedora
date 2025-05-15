@@ -213,7 +213,7 @@
 %endif
 %if 0%{?fedora}
 %global bundlecrc32c 0
-%global bundlesimdutf 1
+%global bundlesimdutf 0
 %endif
 %if 0%{?rhel} > 9 || 0%{?fedora}
 %global bundlelibopenjpeg2 0
