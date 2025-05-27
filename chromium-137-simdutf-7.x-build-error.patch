@@ -1,0 +1,21 @@
+diff -up chromium-137.0.7151.40/v8/src/builtins/builtins-typed-array.cc.simdutf-7.x chromium-137.0.7151.40/v8/src/builtins/builtins-typed-array.cc
+--- chromium-137.0.7151.40/v8/src/builtins/builtins-typed-array.cc.simdutf-7.x	2025-05-21 00:14:25.000000000 +0200
++++ chromium-137.0.7151.40/v8/src/builtins/builtins-typed-array.cc	2025-05-23 23:31:59.961068931 +0200
+@@ -493,7 +493,7 @@ Maybe<simdutf::result> ArrayBufferFromBa
+   std::unique_ptr<char[]> output = std::make_unique<char[]>(output_length);
+   simdutf::result simd_result = simdutf::base64_to_binary_safe(
+       reinterpret_cast<const T>(input_vector), input_length, output.get(),
+-      output_length, alphabet, last_chunk_handling);
++      output_length, alphabet, last_chunk_handling, false);
+ 
+   {
+     AllowGarbageCollection gc;
+@@ -526,7 +526,7 @@ simdutf::result ArrayBufferSetFromBase64
+   simdutf::result simd_result = simdutf::base64_to_binary_safe(
+       reinterpret_cast<const T>(input_vector), input_length,
+       reinterpret_cast<char*>(typed_array->DataPtr()), output_length, alphabet,
+-      last_chunk_handling);
++      last_chunk_handling, false);
+ 
+   return simd_result;
+ }

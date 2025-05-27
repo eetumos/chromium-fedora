@@ -1,0 +1,12 @@
+diff -up chromium-137.0.7151.40/v8/src/builtins/builtins-typed-array.cc.me chromium-137.0.7151.40/v8/src/builtins/builtins-typed-array.cc
+--- chromium-137.0.7151.40/v8/src/builtins/builtins-typed-array.cc.me	2025-05-21 00:14:25.000000000 +0200
++++ chromium-137.0.7151.40/v8/src/builtins/builtins-typed-array.cc	2025-05-23 23:31:59.961068931 +0200
+@@ -820,7 +820,7 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
+ 
+     size_t simd_result_size;
+     if (uint8array->buffer()->is_shared()) {
+-      simd_result_size = simdutf::atomic_binary_to_base64(
++      simd_result_size = simdutf::binary_to_base64(
+           std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store()),
+           length, reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+     } else {
