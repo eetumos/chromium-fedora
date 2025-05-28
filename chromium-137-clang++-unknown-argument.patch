@@ -1,0 +1,27 @@
+diff -up chromium-137.0.7151.55/build/config/compiler/BUILD.gn.me chromium-137.0.7151.55/build/config/compiler/BUILD.gn
+--- chromium-137.0.7151.55/build/config/compiler/BUILD.gn.me	2025-05-28 11:19:37.795916619 +0200
++++ chromium-137.0.7151.55/build/config/compiler/BUILD.gn	2025-05-28 11:22:56.845410531 +0200
+@@ -623,13 +623,6 @@ config("compiler") {
+         default_toolchain != "//build/toolchain/cros:target") {
+       cflags += [ "-Wa,--crel,--allow-experimental-crel" ]
+     }
+-
+-    # TODO(crbug.com/413427035): Remove once
+-    # https://github.com/llvm/llvm-project/pull/136867/ is landed.
+-    if (!is_win && !llvm_android_mainline &&
+-        default_toolchain != "//build/toolchain/cros:target") {
+-      cflags += [ "-fextend-variable-liveness=none" ]
+-    }
+   }
+ 
+   # C11/C++11 compiler flags setup.
+@@ -2053,9 +2046,6 @@ config("default_warnings") {
+ 
+         # TODO(crbug.com/40284799): Fix and re-enable.
+         "-Wno-thread-safety-reference-return",
+-
+-        # TODO(crbug.com/376641662): Fix and re-enable.
+-        "-Wno-nontrivial-memcall",
+       ]
+ 
+       cflags_cc += [

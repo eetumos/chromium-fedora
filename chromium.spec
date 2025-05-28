@@ -329,8 +329,6 @@ Patch307: chromium-134-el8-atk-compiler-error.patch
 # Fix build errors due to old clang18 in el8
 Patch308: chromium-136-unsupport-clang-flags.patch
 Patch309: chromium-132-el8-unsupport-rustc-flags.patch
-Patch310: chromium-132-el8-clang18-build-error.patch
-Patch311: chromium-133-clang18-template.patch
 
 # enable fstack-protector-strong
 Patch312: chromium-123-fstack-protector-strong.patch
@@ -349,8 +347,8 @@ Patch315: chromium-134-rust-libadler2.patch
 # add -ftrivial-auto-var-init=zero and -fwrapv
 Patch316: chromium-122-clang-build-flags.patch
 
-# Workaround for clang crash due to old clang-18.x on x86_64 el9/fedora40
-Patch317: chromium-136-cnnpack-clang18-crash-x86_64.patch
+# Fix FTBFS, clang++: error: unknown argument: '-fextend-variable-liveness=none'
+Patch317: chromium-137-clang++-unknown-argument.patch
 
 # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=2239523
 # https://bugs.chromium.org/p/chromium/issues/detail?id=1145581#c60
@@ -1048,12 +1046,7 @@ Qt6 UI for chromium.
 %patch -P307 -p1 -b .el8-atk-compiler-error
 %patch -P308 -p1 -b .unsupport-clang-flags
 %patch -P309 -p1 -b .el8-unsupport-rustc-flags
-%patch -P310 -p1 -b .el8-clang18-build-error
-%patch -P311 -p1 -b .clang18-template
 %patch -P314 -p1 -b .rust-skrifa-build-error
-%ifarch x86_64
-%patch -P317 -p1 -b .xnnpack-clang18-crash-x86_64
-%endif
 %endif
 
 %patch -P312 -p1 -b .fstack-protector-strong
@@ -1068,6 +1061,10 @@ Qt6 UI for chromium.
 %patch -P315 -p1 -b .rust-libadler2
 %endif
 %patch -P316 -p1 -b .clang-build-flags
+
+%if 0%{?fedora} > 41 || 0%{?rhel} > 9
+%patch -P317 -p1 -b .clang++-unsupported-argument
+%endif
 
 %if %{disable_bti}
 %patch -P352 -p1 -b .workaround_for_crash_on_BTI_capable_system
