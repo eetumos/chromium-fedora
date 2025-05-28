@@ -4,20 +4,8 @@
 # enable|disable system build flags
 %global system_build_flags 0
 
-# set default numjobs for the koji build
-%ifarch aarch64
-%global numjobs 8
-%else
 %global numjobs %{_smp_build_ncpus}
-%endif
 
-# enable|disable all cpus for the build.
-%global use_all_cpus 1
-
-%if %{use_all_cpus}
-%global numjobs %{_smp_build_ncpus}
-%endif
- 
 # official builds have less debugging and go faster... but we have to shut some things off.
 %global official_build 1
 
@@ -332,9 +320,6 @@ Patch309: chromium-132-el8-unsupport-rustc-flags.patch
 
 # enable fstack-protector-strong
 Patch312: chromium-123-fstack-protector-strong.patch
-
-# build error stdarch_arm_crc32
-Patch313: chromium-133-rust-crc32fast.patch
 
 # old rust version causes build error on el8:
 # error[E0599]: no method named `is_none_or` found for enum `Option` in the current scope
@@ -1051,18 +1036,12 @@ Qt6 UI for chromium.
 
 %patch -P312 -p1 -b .fstack-protector-strong
 
-%ifarch aarch64
-%if 0%{?rhel} == 8 || 0%{?rhel} == 9
-%patch -P313 -p1 -b .rust-crc32fast
-%endif
-%endif
-
 %if 0%{?rhel}
 %patch -P315 -p1 -b .rust-libadler2
 %endif
 %patch -P316 -p1 -b .clang-build-flags
 
-%if 0%{?fedora} > 41 || 0%{?rhel} > 9
+%if 0%{?fedora} < 42 || 0%{?rhel} < 10
 %patch -P317 -p1 -b .clang++-unsupported-argument
 %endif
 
