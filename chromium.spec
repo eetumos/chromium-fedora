@@ -1039,7 +1039,7 @@ Qt6 UI for chromium.
 
 %patch -P312 -p1 -b .fstack-protector-strong
 
-%if 0%{?rhel} < 10
+%if 0%{?rhel} == 9
 %patch -P315 -p1 -b .rust-libadler2
 %endif
 %patch -P316 -p1 -b .clang-build-flags
