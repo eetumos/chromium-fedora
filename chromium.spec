@@ -279,6 +279,7 @@ Patch92: chromium-138-checkversion-nodejs.patch
 
 # system ffmpeg
 # need for old ffmpeg 5.x on epel9
+Patch128: chromium-138-el9-ffmpeg-deprecated-apis.patch
 Patch129: chromium-125-ffmpeg-5.x-reordered_opaque.patch
 Patch130: chromium-107-ffmpeg-5.x-duration.patch
 # disable the check
@@ -978,6 +979,7 @@ Qt6 UI for chromium.
 
 %if ! %{bundleffmpegfree}
 %if 0%{?rhel} == 9
+%patch -P128 -p1 -b .el9-ffmpeg-deprecated-apis
 %patch -P129 -p1 -R -b .ffmpeg-5.x-reordered_opaque
 %patch -P130 -p1 -b .ffmpeg-5.x-duration
 %endif
