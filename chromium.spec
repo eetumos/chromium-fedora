@@ -326,8 +326,8 @@ Patch315: chromium-134-rust-libadler2.patch
 # add -ftrivial-auto-var-init=zero and -fwrapv
 Patch316: chromium-122-clang-build-flags.patch
 
-# Fix FTBFS, clang++: error: unknown argument: '-fextend-variable-liveness=none'
-Patch317: chromium-137-clang++-unknown-argument.patch
+# unknown warning option -Wno-nontrivial-memcall
+Patch317: chromium-138-clang++-unknown-argument.patch
 
 # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=2239523
 # https://bugs.chromium.org/p/chromium/issues/detail?id=1145581#c60
