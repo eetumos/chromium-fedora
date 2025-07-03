@@ -1742,7 +1742,7 @@ fi
 
 %changelog
 * Thu Jul 01 2025 Than Ngo <than@redhat.com> - 138.0.7204.92-1
-- Update to 138.0.7204.96
+- Update to 138.0.7204.92
   * High CVE-2025-6554: Type Confusion in V8 
 
 * Tue Jun 24 2025 Than Ngo <than@redhat.com> - 138.0.7204.49-1
