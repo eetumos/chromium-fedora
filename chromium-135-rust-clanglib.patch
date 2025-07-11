@@ -38,7 +38,7 @@ diff -up chromium-135.0.7049.84/build/config/clang/BUILD.gn.than chromium-135.0.
 +        # different clang lib dir in fedora/epel
 +        if (clang_version >= 17) {
 +          _suffix = ""
-+        } else if (clang_version == "14" || clang_version == "15" || clang_version == "16") {
++        } else if (clang_version >= 14) {
 +          _libprefix = "64"
 +          _dir = ""
 +        }
