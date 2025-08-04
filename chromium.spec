@@ -245,7 +245,7 @@
 
 Name:	chromium
 Version: 138.0.7204.183
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: A WebKit (Blink) powered web browser that Google doesn't want you to use
 Url: http://www.chromium.org/Home
 License: BSD-3-Clause AND LGPL-2.1-or-later AND Apache-2.0 AND IJG AND MIT AND GPL-2.0-or-later AND ISC AND OpenSSL AND (MPL-1.1 OR GPL-2.0-only OR LGPL-2.0-only)
@@ -441,6 +441,9 @@ Patch502: flatpak-Expose-Widevine-into-the-sandbox.patch
 Patch510: 0001-Remove-unused-OpenSSL-config.patch
 Patch511: 0002-Fix-Missing-OPENSSL_NO_ENGINE-Guard.patch
 %endif
+
+# https://github.com/chromium/chromium/commit/b0ff8c3b258a8816c05bdebf472dbba719d3c491
+Patch512: b0ff8c3b258a8816c05bdebf472dbba719d3c491.patch
 
 # upstream patches
 
@@ -1741,6 +1744,9 @@ fi
 %endif
 
 %changelog
+* Mon Aug 04 2025 Tom Stellard <tstellar@redhat.com> - 138.0.7204.183-2
+- Backport fix for build failure with clang-21
+
 * Wed Jul 30 2025 Than Ngo <than@redhat.com> - 138.0.7204.183-1
 - Update to 138.0.7204.183
   * CVE-2025-8292: Use after free in Media Stream
