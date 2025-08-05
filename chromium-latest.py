@@ -324,7 +324,12 @@ if __name__ == '__main__':
                  'third_party/node/linux/node-linux-x64',
                  'third_party/rust-toolchain',
                  'third_party/rust-src',
-                 'third_party/devtools-frontend/src/third_party/esbuild']
+                 'third_party/devtools-frontend/src/third_party/esbuild',
+                 'third_party/enterprise_companion/chromium_linux64',
+                 'third_party/enterprise_companion/chromium_mac_amd64',
+                 'third_party/enterprise_companion/chromium_mac_arm64',
+                 'third_party/enterprise_companion/chromium_win_x86',
+                 'third_party/enterprise_companion/chromium_win_x86_64']
     junk_files = ['third_party/node/linux/node-linux-x64.tar.gz',
                   'buildtools/third_party/eu-strip/bin/eu-strip',
                   'buildtools/linux64/gn']
