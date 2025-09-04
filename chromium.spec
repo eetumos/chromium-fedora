@@ -371,7 +371,6 @@ Patch383: 0001-swiftshader-fix-build.patch
 
 Patch384: Rtc_base-system-arch.h-PPC.patch
 
-Patch385: 0002-Include-cstddef-to-fix-build.patch
 Patch386: 0004-third_party-crashpad-port-curl-transport-ppc64.patch
 
 Patch387: HACK-third_party-libvpx-use-generic-gnu.patch
@@ -411,8 +410,6 @@ Patch412: add-ppc64-architecture-to-extensions.diff
 # Suppress harmless compiler warning messages that appear on ppc64 due to arch-specific warning flags being passed
 Patch413: fix-unknown-warning-option-messages.diff
 Patch415: add-ppc64-pthread-stack-size.patch
-# Fix build error on el10
-Patch416: fix-ppc64-rust_png-build-error.patch
 
 Patch417: 0001-add-xnn-ppc64el-support.patch
 Patch418: 0002-regenerate-xnn-buildgn.patch
@@ -1035,7 +1032,6 @@ Qt6 UI for chromium.
 %patch -P382 -p1 -b .0002-third_party-lss-kernel-structs
 %patch -P383 -p1 -b .0001-swiftshader-fix-build
 %patch -P384 -p1 -b .Rtc_base-system-arch.h-PPC
-%patch -P385 -p1 -b .0002-Include-cstddef-to-fix-build
 %patch -P386 -p1 -b .0004-third_party-crashpad-port-curl-transport-ppc64
 %patch -P387 -p1 -b .HACK-third_party-libvpx-use-generic-gnu
 %patch -P388 -p1 -b .0001-third-party-hwy-wrong-include.patch
@@ -1065,7 +1061,6 @@ Qt6 UI for chromium.
 %patch -P412 -p1 -b .add-ppc64-architecture-to-extensions
 %patch -P413 -p1 -b .fix-unknown-warning-option-messages
 %patch -P415 -p1 -b .add-ppc64-pthread-stack-size
-%patch -P416 -p1 -b .ppc64-rust_png-build-error
 %patch -P417 -p1 -b .0001-add-xnn-ppc64el-support
 %patch -P418 -p1 -b .0002-regenerate-xnn-buildgn
 %endif
