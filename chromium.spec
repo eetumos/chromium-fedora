@@ -315,6 +315,9 @@ Patch309: chromium-132-el8-unsupport-rustc-flags.patch
 # Fix rhbz#2387446, FTBFS with rust-1.89.0
 Patch310: chromium-139-rust-FTBFS-suppress-warnings.patch
 
+# Fix FTBFS: undefined symbol: __rust_no_alloc_shim_is_unstable
+Patch311: chromium-rust-no-alloc-shim-is-unstable.patch
+
 # enable fstack-protector-strong
 Patch312: chromium-123-fstack-protector-strong.patch
 
@@ -993,6 +996,9 @@ Qt6 UI for chromium.
 %endif
 
 %patch -P310 -p1 -b .rust-FTBFS-suppress-warnings
+%if 0%{?rhel}
+%patch -P311 -p1 -b .rust-no-alloc-shim-is-unstable
+%endif
 %patch -P312 -p1 -b .fstack-protector-strong
 
 %if 0%{?rhel} && 0%{?rhel} < 10
