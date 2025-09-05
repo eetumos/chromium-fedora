@@ -280,6 +280,7 @@ Patch92: chromium-138-checkversion-nodejs.patch
 # system ffmpeg
 # need for old ffmpeg 5.x on epel9
 Patch128: chromium-138-el9-ffmpeg-deprecated-apis.patch
+Patch129: chromium-el9-ffmpeg-AV_CODEC_FLAG_COPY_OPAQUE.patch
 Patch130: chromium-107-ffmpeg-5.x-duration.patch
 # disable the check
 Patch131: chromium-107-proprietary-codecs.patch
@@ -965,6 +966,7 @@ Qt6 UI for chromium.
 %if ! %{bundleffmpegfree}
 %if 0%{?rhel} == 9
 %patch -P128 -p1 -b .el9-ffmpeg-deprecated-apis
+%patch -P129 -p1 -b .el9-ffmpeg-AV_CODEC_FLAG_COPY_OPAQUE
 %patch -P130 -p1 -b .ffmpeg-5.x-duration
 %patch -P133 -p1 -b .el9-ffmpeg-5.1.x
 %endif
