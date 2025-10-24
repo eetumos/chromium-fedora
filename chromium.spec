@@ -444,7 +444,7 @@ Patch415: add-ppc64-pthread-stack-size.patch
 # For Chromium Fedora use chromium-latest.py --stable --ffmpegclean --ffmpegarm
 # If you want to include the ffmpeg arm sources append the --ffmpegarm switch
 # https://commondatastorage.googleapis.com/chromium-browser-official/chromium-%%{version}.tar.xz
-Source0: chromium-%{version}-clean.tar.xz
+Source0: https://commondatastorage.googleapis.com/chromium-browser-official/chromium-%{version}.tar.xz
 Source1: README.fedora
 Source2: chromium.conf
 Source3: chromium-browser.sh
