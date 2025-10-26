@@ -434,6 +434,8 @@ Patch413: fix-unknown-warning-option-messages.diff
 Patch414: cargo-add-ppc64.diff
 Patch415: add-ppc64-pthread-stack-size.patch
 
+Patch900: clang-20-perfetto.patch
+
 # upstream patches
 
 # Use chromium-latest.py to generate clean tarball from released build tarballs, found here:
@@ -1128,6 +1130,8 @@ cd chromium-%{version}
 %patch -P414 -p1 -b .rust-add-ppc64-case
 %patch -P415 -p1 -b .add-ppc64-pthread-stack-size
 %endif
+
+%patch -P900 -p1
 
 # Change shebang in all relevant files in this directory and all subdirectories
 # See `man find` for how the `-exec command {} +` syntax works
