@@ -433,6 +433,8 @@ Patch415: add-ppc64-pthread-stack-size.patch
 Patch900: perfetto-clang-20.patch
 Patch901: webrtc-pipewire.patch
 Patch902: webxr-linux-vulkan.patch
+Patch903: rust-png-misc.patch
+Patch904: rust-png-adler2.patch
 
 # upstream patches
 
@@ -484,7 +486,7 @@ BuildRequires: lld
 BuildRequires: gcc-toolset-13-libatomic-devel
 %endif
 
-BuildRequires: rustc = 1.85.1
+BuildRequires: rustc = 1.86.0
 BuildRequires: bindgen-cli
 
 %if ! %{bundlezstd}
@@ -1133,6 +1135,8 @@ git clone --depth=1 --revision=$(grep -oP "OpenXR-SDK.*'\K[0-9a-z]+" DEPS) \
 %patch -P900 -p1
 %patch -P901 -p1 -dthird_party/webrtc
 %patch -P902 -p1
+%patch -P903 -p1
+%patch -P904 -p1
 
 # Change shebang in all relevant files in this directory and all subdirectories
 # See `man find` for how the `-exec command {} +` syntax works
@@ -1297,6 +1301,8 @@ CHROMIUM_CORE_GN_DEFINES+=' use_lld=true'
 CHROMIUM_CORE_GN_DEFINES+=' rust_sysroot_absolute="%{_prefix}"'
 CHROMIUM_CORE_GN_DEFINES+=" rust_bindgen_root=\"$rust_bindgen_root\""
 CHROMIUM_CORE_GN_DEFINES+=" rustc_version=\"$rustc_version\""
+CHROMIUM_CORE_GN_DEFINES+=' removed_rust_stdlib_libs=["adler"]'
+CHROMIUM_CORE_GN_DEFINES+=' added_rust_stdlib_libs=["adler2"]'
 
 CHROMIUM_CORE_GN_DEFINES+=' use_sysroot=false'
 

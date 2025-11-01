@@ -1,0 +1,1629 @@
+From 04fddd5a03380856d7b44f7b58f2b5290408c3d3 Mon Sep 17 00:00:00 2001
+From: Lukasz Anforowicz <lukasza@chromium.org>
+Date: Fri, 20 Sep 2024 14:52:31 +0000
+Subject: [PATCH] [rust png] Patch `png` crate to support resuming after
+ `UnexpectedEof`.
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This CL corresponds to the upstream PR at
+https://github.com/image-rs/image-png/pull/496
+
+This CL depends on first landing http://review.skia.org/896876 (and
+rolling that Skia change into Chromium).  Otherwise, the new behavior of
+the `png` crate (ability to generate `png::DecodingError::IoError`
+_within_ the `png` crate) would have hit an `unreachable!` check in
+`skia/experimental/rust_png/FFI.rs` [1]
+
+The patches added by this CL underneath
+`//third_party/rust/chromium_crates_io/patches/png` had to be manually
+edited to make them apply cleanly at the 0.17.13 version, because the
+patches have been originally generated at ToT of the `png` crate (where
+the PR has been merged, but which also includes some other changes).
+(Only the 202 patch had to be edited in this way.)
+
+[1] https://source.chromium.org/chromium/chromium/src/+/main:third_party/skia/experimental/rust_png/ffi/FFI.rs;l=113-116;drc=515a23f3cbe1e2f54ffa6821e6da6f4891763f47
+
+Bug: chromium:356923435
+Change-Id: Ibddd053d0505a7ea681169415b2adca65c409d1b
+Cq-Include-Trybots: chromium/try:linux-rust-x64-dbg
+Cq-Include-Trybots: chromium/try:linux-rust-x64-rel
+Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/5836023
+Reviewed-by: Adrian Taylor <adetaylor@chromium.org>
+Commit-Queue: Łukasz Anforowicz <lukasza@chromium.org>
+Cr-Commit-Position: refs/heads/main@{#1358158}
+---
+ ...-a-separate-interlace_info.rs-module.patch | 376 ++++++++++++++++++
+ ...cting-an-unexpected-EOF-using-the-pu.patch | 129 ++++++
+ ...esuming-decoding-after-UnexpectedEof.patch | 336 ++++++++++++++++
+ .../vendor/png-0.17.13/src/adam7.rs           |  11 +-
+ .../png-0.17.13/src/decoder/interlace_info.rs | 128 ++++++
+ .../vendor/png-0.17.13/src/decoder/mod.rs     | 151 +++----
+ .../vendor/png-0.17.13/src/decoder/stream.rs  | 190 ++++++++-
+ third_party/rust/png/v0_17/BUILD.gn           |   1 +
+ 8 files changed, 1197 insertions(+), 125 deletions(-)
+ create mode 100644 third_party/rust/chromium_crates_io/patches/png/0201-Extract-a-separate-interlace_info.rs-module.patch
+ create mode 100644 third_party/rust/chromium_crates_io/patches/png/0202-Support-for-detecting-an-unexpected-EOF-using-the-pu.patch
+ create mode 100644 third_party/rust/chromium_crates_io/patches/png/0203-Support-for-resuming-decoding-after-UnexpectedEof.patch
+ create mode 100644 third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/interlace_info.rs
+
+diff --git a/third_party/rust/chromium_crates_io/patches/png/0201-Extract-a-separate-interlace_info.rs-module.patch b/third_party/rust/chromium_crates_io/patches/png/0201-Extract-a-separate-interlace_info.rs-module.patch
+new file mode 100644
+index 00000000000000..339f8064b205cf
+--- /dev/null
++++ b/third_party/rust/chromium_crates_io/patches/png/0201-Extract-a-separate-interlace_info.rs-module.patch
+@@ -0,0 +1,376 @@
++From eebd5b2f43d635451a93fc6db6378ad8023a94f6 Mon Sep 17 00:00:00 2001
++From: Lukasz Anforowicz <lukasza@chromium.org>
++Date: Sun, 8 Sep 2024 20:40:17 +0000
++Subject: [PATCH] Extract a separate `interlace_info.rs` module.
++
++This commit decouples `fn next_pass` and `InterlaceIter` from the rest
++of `mod.rs` - this coupling was mostly limited to 1) using
++`self.subframe.rowlen` for `InterfaceInfo::Null` and 2) resetting
++`self.prev_start` in-between Adam7 passes.  This decoupling allows
++to encapsulate the related functionality inside a new
++`interlace_info.rs` module.  This helps in follow-up commits, where
++we want to refactor when exactly `Reader` advances that iterator.
++---
++ src/adam7.rs                  |  11 +--
++ src/decoder/interlace_info.rs | 128 ++++++++++++++++++++++++++++++++++
++ src/decoder/mod.rs            | 102 ++++++---------------------
++ 3 files changed, 154 insertions(+), 87 deletions(-)
++ create mode 100644 src/decoder/interlace_info.rs
++
++diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/adam7.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/adam7.rs
++index 8016b8b..75acf02 100644
++--- a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/adam7.rs
+++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/adam7.rs
++@@ -5,7 +5,7 @@
++ /// [the Adam7 algorithm](https://en.wikipedia.org/wiki/Adam7_algorithm)
++ /// applies to a decoded row.
++ ///
++-/// See also [crate::decoder::Reader::next_interlaced_row].
+++/// See also [Reader.next_interlaced_row](crate::decoder::Reader::next_interlaced_row).
++ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
++ pub struct Adam7Info {
++     pub(crate) pass: u8,
++@@ -27,10 +27,10 @@ impl Adam7Info {
++     ///   in the 1st `pass`, the `width` is be 1/8th of the image width (rounded up as
++     ///   necessary).
++     ///
++-    /// Note that in typical usage, `Adam7Info`s are returned by [Reader::next_interlaced_row]
+++    /// Note that in typical usage, `Adam7Info`s are returned by [Reader.next_interlaced_row]
++     /// and there is no need to create them by calling `Adam7Info::new`.  `Adam7Info::new` is
++     /// nevertheless exposed as a public API, because it helps to provide self-contained example
++-    /// usage of [expand_interlaced_row].
+++    /// usage of [expand_interlaced_row](crate::expand_interlaced_row).
++     pub fn new(pass: u8, line: u32, width: u32) -> Self {
++         assert!(1 <= pass && pass <= 7);
++         assert!(width > 0);
++@@ -92,11 +92,6 @@ impl Adam7Iterator {
++         self.lines = lines.ceil() as u32;
++         self.line = 0;
++     }
++-
++-    /// The current pass#.
++-    pub fn current_pass(&self) -> u8 {
++-        self.current_pass
++-    }
++ }
++ 
++ /// Iterates over `Adam7Info`s.
++diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/interlace_info.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/interlace_info.rs
++new file mode 100644
++index 0000000..4201fff
++--- /dev/null
+++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/interlace_info.rs
++@@ -0,0 +1,128 @@
+++use std::ops::Range;
+++
+++use crate::adam7::{Adam7Info, Adam7Iterator};
+++
+++/// Describes which interlacing algorithm applies to a decoded row.
+++///
+++/// PNG (2003) specifies two interlace modes, but reserves future extensions.
+++///
+++/// See also [Reader.next_interlaced_row](crate::Reader::next_interlaced_row).
+++#[derive(Clone, Copy, Debug)]
+++pub enum InterlaceInfo {
+++    /// The `null` method means no interlacing.
+++    Null(NullInfo),
+++    /// [The `Adam7` algorithm](https://en.wikipedia.org/wiki/Adam7_algorithm) derives its name
+++    /// from doing 7 passes over the image, only decoding a subset of all pixels in each pass.
+++    /// The following table shows pictorially what parts of each 8x8 area of the image is found in
+++    /// each pass:
+++    ///
+++    /// ```txt
+++    /// 1 6 4 6 2 6 4 6
+++    /// 7 7 7 7 7 7 7 7
+++    /// 5 6 5 6 5 6 5 6
+++    /// 7 7 7 7 7 7 7 7
+++    /// 3 6 4 6 3 6 4 6
+++    /// 7 7 7 7 7 7 7 7
+++    /// 5 6 5 6 5 6 5 6
+++    /// 7 7 7 7 7 7 7 7
+++    /// ```
+++    Adam7(Adam7Info),
+++}
+++
+++#[derive(Clone, Copy, Debug)]
+++pub struct NullInfo {
+++    line: u32,
+++}
+++
+++impl InterlaceInfo {
+++    pub(crate) fn line_number(&self) -> u32 {
+++        match self {
+++            InterlaceInfo::Null(NullInfo { line }) => *line,
+++            InterlaceInfo::Adam7(Adam7Info { line, .. }) => *line,
+++        }
+++    }
+++
+++    pub(crate) fn get_adam7_info(&self) -> Option<&Adam7Info> {
+++        match self {
+++            InterlaceInfo::Null(_) => None,
+++            InterlaceInfo::Adam7(adam7info) => Some(adam7info),
+++        }
+++    }
+++}
+++
+++pub(crate) struct InterlaceInfoIter(IterImpl);
+++
+++impl InterlaceInfoIter {
+++    pub fn empty() -> Self {
+++        Self(IterImpl::None(0..0))
+++    }
+++
+++    pub fn new(width: u32, height: u32, interlaced: bool) -> Self {
+++        if interlaced {
+++            Self(IterImpl::Adam7(Adam7Iterator::new(width, height)))
+++        } else {
+++            Self(IterImpl::None(0..height))
+++        }
+++    }
+++}
+++
+++impl Iterator for InterlaceInfoIter {
+++    type Item = InterlaceInfo;
+++
+++    fn next(&mut self) -> Option<InterlaceInfo> {
+++        match self.0 {
+++            IterImpl::Adam7(ref mut adam7) => Some(InterlaceInfo::Adam7(adam7.next()?)),
+++            IterImpl::None(ref mut height) => Some(InterlaceInfo::Null(NullInfo {
+++                line: height.next()?,
+++            })),
+++        }
+++    }
+++}
+++
+++enum IterImpl {
+++    None(Range<u32>),
+++    Adam7(Adam7Iterator),
+++}
+++
+++#[cfg(test)]
+++mod test {
+++    use super::*;
+++
+++    #[test]
+++    fn null() {
+++        assert_eq!(
+++            InterlaceInfoIter::new(8, 8, false)
+++                .map(|info| info.line_number())
+++                .collect::<Vec<_>>(),
+++            vec![0, 1, 2, 3, 4, 5, 6, 7],
+++        );
+++    }
+++
+++    #[test]
+++    fn adam7() {
+++        assert_eq!(
+++            InterlaceInfoIter::new(8, 8, true)
+++                .map(|info| info.line_number())
+++                .collect::<Vec<_>>(),
+++            vec![
+++                0, // pass 1
+++                0, // pass 2
+++                0, // pass 3
+++                0, 1, // pass 4
+++                0, 1, // pass 5
+++                0, 1, 2, 3, // pass 6
+++                0, 1, 2, 3, // pass 7
+++            ],
+++        );
+++    }
+++
+++    #[test]
+++    fn empty() {
+++        assert_eq!(
+++            InterlaceInfoIter::empty()
+++                .map(|info| info.line_number())
+++                .collect::<Vec<_>>(),
+++            vec![],
+++        );
+++    }
+++}
++diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
++index 8f50e9b..abe94c1 100644
++--- a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
+++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
++@@ -1,3 +1,4 @@
+++mod interlace_info;
++ mod stream;
++ pub(crate) mod transform;
++ mod zlib;
++@@ -8,15 +9,17 @@ use self::transform::{create_transform_fn, TransformFn};
++ 
++ use std::io::{BufRead, BufReader, Read};
++ use std::mem;
++-use std::ops::Range;
++ 
++-use crate::adam7;
+++use crate::adam7::{self, Adam7Info};
++ use crate::chunk;
++ use crate::common::{
++     BitDepth, BytesPerPixel, ColorType, Info, ParameterErrorKind, Transformations,
++ };
++ use crate::filter::{unfilter, FilterType};
++ 
+++pub use interlace_info::InterlaceInfo;
+++use interlace_info::InterlaceInfoIter;
+++
++ /*
++ pub enum InterlaceHandling {
++     /// Outputs the raw rows
++@@ -104,42 +107,6 @@ impl<'data> InterlacedRow<'data> {
++     }
++ }
++ 
++-/// Describes which interlacing algorithm applies to a decoded row.
++-///
++-/// PNG (2003) specifies two interlace modes, but reserves future extensions.
++-///
++-/// See also [Reader::next_interlaced_row].
++-#[derive(Clone, Copy, Debug)]
++-pub enum InterlaceInfo {
++-    /// The `null` method means no interlacing.
++-    Null,
++-    /// [The `Adam7` algorithm](https://en.wikipedia.org/wiki/Adam7_algorithm) derives its name
++-    /// from doing 7 passes over the image, only decoding a subset of all pixels in each pass.
++-    /// The following table shows pictorially what parts of each 8x8 area of the image is found in
++-    /// each pass:
++-    ///
++-    /// ```txt
++-    /// 1 6 4 6 2 6 4 6
++-    /// 7 7 7 7 7 7 7 7
++-    /// 5 6 5 6 5 6 5 6
++-    /// 7 7 7 7 7 7 7 7
++-    /// 3 6 4 6 3 6 4 6
++-    /// 7 7 7 7 7 7 7 7
++-    /// 5 6 5 6 5 6 5 6
++-    /// 7 7 7 7 7 7 7 7
++-    /// ```
++-    Adam7(adam7::Adam7Info),
++-}
++-
++-impl InterlaceInfo {
++-    fn get_adam7_info(&self) -> Option<&adam7::Adam7Info> {
++-        match self {
++-            InterlaceInfo::Null => None,
++-            InterlaceInfo::Adam7(adam7info) => Some(adam7info),
++-        }
++-    }
++-}
++-
++ /// A row of data without interlace information.
++ #[derive(Clone, Copy, Debug)]
++ pub struct Row<'data> {
++@@ -422,16 +389,10 @@ struct SubframeInfo {
++     width: u32,
++     height: u32,
++     rowlen: usize,
++-    interlace: InterlaceIter,
+++    interlace: InterlaceInfoIter,
++     consumed_and_flushed: bool,
++ }
++ 
++-#[derive(Clone)]
++-enum InterlaceIter {
++-    None(Range<u32>),
++-    Adam7(adam7::Adam7Iterator),
++-}
++-
++ /// Denote a frame as given by sequence numbers.
++ #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
++ enum SubframeIdx {
++@@ -565,7 +526,7 @@ impl<R: Read> Reader<R> {
++             {
++                 // `unwrap` won't panic, because we checked `self.info().interlaced` above.
++                 let adam7info = interlace.get_adam7_info().unwrap();
++-                adam7::expand_pass(buf, stride, row, &adam7info, bits_pp);
+++                adam7::expand_pass(buf, stride, row, adam7info, bits_pp);
++             }
++         } else {
++             for row in buf
++@@ -610,15 +571,22 @@ impl<R: Read> Reader<R> {
++ 
++     /// Returns the next processed row of the image
++     pub fn next_interlaced_row(&mut self) -> Result<Option<InterlacedRow>, DecodingError> {
++-        let (rowlen, interlace) = match self.next_pass() {
++-            Some((rowlen, interlace)) => (rowlen, interlace),
+++        let interlace = match self.subframe.interlace.next() {
++             None => return Ok(None),
+++            Some(interlace) => interlace,
++         };
++-
++-        let width = if let InterlaceInfo::Adam7(adam7::Adam7Info { width, .. }) = interlace {
++-            width
++-        } else {
++-            self.subframe.width
+++        if interlace.line_number() == 0 {
+++            self.prev_start = self.current_start;
+++        }
+++        let rowlen = match interlace {
+++            InterlaceInfo::Null(_) => self.subframe.rowlen,
+++            InterlaceInfo::Adam7(Adam7Info { width, .. }) => {
+++                self.info().raw_row_length_from_width(width)
+++            }
+++        };
+++        let width = match interlace {
+++            InterlaceInfo::Adam7(Adam7Info { width, .. }) => width,
+++            InterlaceInfo::Null(_) => self.subframe.width,
++         };
++         let output_line_size = self.output_line_size(width);
++ 
++@@ -727,24 +695,6 @@ impl<R: Read> Reader<R> {
++         color.raw_row_length_from_width(depth, width) - 1
++     }
++ 
++-    fn next_pass(&mut self) -> Option<(usize, InterlaceInfo)> {
++-        match self.subframe.interlace {
++-            InterlaceIter::Adam7(ref mut adam7) => {
++-                let last_pass = adam7.current_pass();
++-                let adam7info = adam7.next()?;
++-                let rowlen = self.info().raw_row_length_from_width(adam7info.width);
++-                if last_pass != adam7info.pass {
++-                    self.prev_start = self.current_start;
++-                }
++-                Some((rowlen, InterlaceInfo::Adam7(adam7info)))
++-            }
++-            InterlaceIter::None(ref mut height) => {
++-                let _ = height.next()?;
++-                Some((self.subframe.rowlen, InterlaceInfo::Null))
++-            }
++-        }
++-    }
++-
++     /// Write the next raw interlaced row into `self.prev`.
++     ///
++     /// The scanline is filtered against the previous scanline according to the specification.
++@@ -812,7 +762,7 @@ impl SubframeInfo {
++             width: 0,
++             height: 0,
++             rowlen: 0,
++-            interlace: InterlaceIter::None(0..0),
+++            interlace: InterlaceInfoIter::empty(),
++             consumed_and_flushed: false,
++         }
++     }
++@@ -826,17 +776,11 @@ impl SubframeInfo {
++             (info.width, info.height)
++         };
++ 
++-        let interlace = if info.interlaced {
++-            InterlaceIter::Adam7(adam7::Adam7Iterator::new(width, height))
++-        } else {
++-            InterlaceIter::None(0..height)
++-        };
++-
++         SubframeInfo {
++             width,
++             height,
++             rowlen: info.raw_row_length_from_width(width),
++-            interlace,
+++            interlace: InterlaceInfoIter::new(width, height, info.interlaced),
++             consumed_and_flushed: false,
++         }
++     }
++-- 
++2.46.0.662.g92d0881bb0-goog
++
+diff --git a/third_party/rust/chromium_crates_io/patches/png/0202-Support-for-detecting-an-unexpected-EOF-using-the-pu.patch b/third_party/rust/chromium_crates_io/patches/png/0202-Support-for-detecting-an-unexpected-EOF-using-the-pu.patch
+new file mode 100644
+index 00000000000000..95e9f542e757df
+--- /dev/null
++++ b/third_party/rust/chromium_crates_io/patches/png/0202-Support-for-detecting-an-unexpected-EOF-using-the-pu.patch
+@@ -0,0 +1,129 @@
++From b5b0674a0cd50a1f3c1e09f699c04b168648a237 Mon Sep 17 00:00:00 2001
++From: Lukasz Anforowicz <lukasza@chromium.org>
++Date: Sun, 8 Sep 2024 20:02:54 +0000
++Subject: [PATCH 202/203] Support for detecting an unexpected EOF using the
++ public API.
++
++This commit supports detecting unexpected EOF using the public API of of
++`DecodingError`.  Before this commit `UnexpectedEof`,
++`UnexpectedEndOfChunk`, and `NoMoreImageData` errors were represented as
++a crate-internal `FormatErrorInner` type.  After this commit, these
++errors have a representation that can be detected using the public API:
++`DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into())`.
++---
++ src/decoder/mod.rs    | 31 +++++++------------------------
++ src/decoder/stream.rs | 12 ------------
++ 2 files changed, 7 insertions(+), 36 deletions(-)
++
++diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
++index abe94c1..94a95bb 100644
++--- a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
+++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
++@@ -191,9 +191,7 @@ impl<R: Read> Decoder<R> {
++         while self.read_decoder.info().is_none() {
++             buf.clear();
++             if self.read_decoder.decode_next(&mut buf)?.is_none() {
++-                return Err(DecodingError::Format(
++-                    FormatErrorInner::UnexpectedEof.into(),
++-                ));
+++                return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
++             }
++         }
++         Ok(self.read_decoder.info().unwrap())
++@@ -303,9 +301,7 @@ impl<R: Read> ReadDecoder<R> {
++             let (consumed, result) = {
++                 let buf = self.reader.fill_buf()?;
++                 if buf.is_empty() {
++-                    return Err(DecodingError::Format(
++-                        FormatErrorInner::UnexpectedEof.into(),
++-                    ));
+++                    return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
++                 }
++                 self.decoder.update(buf, image_data)?
++             };
++@@ -323,9 +319,7 @@ impl<R: Read> ReadDecoder<R> {
++         while !self.at_eof {
++             let buf = self.reader.fill_buf()?;
++             if buf.is_empty() {
++-                return Err(DecodingError::Format(
++-                    FormatErrorInner::UnexpectedEof.into(),
++-                ));
+++                return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
++             }
++             let (consumed, event) = self.decoder.update(buf, &mut vec![])?;
++             self.reader.consume(consumed);
++@@ -340,9 +334,7 @@ impl<R: Read> ReadDecoder<R> {
++             }
++         }
++ 
++-        Err(DecodingError::Format(
++-            FormatErrorInner::UnexpectedEof.into(),
++-        ))
+++        Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()))
++     }
++ 
++     fn info(&self) -> Option<&Info<'static>> {
++@@ -702,9 +694,7 @@ impl<R: Read> Reader<R> {
++         // Read image data until we have at least one full row (but possibly more than one).
++         while self.data_stream.len() - self.current_start < rowlen {
++             if self.subframe.consumed_and_flushed {
++-                return Err(DecodingError::Format(
++-                    FormatErrorInner::NoMoreImageData.into(),
++-                ));
+++                return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
++             }
++ 
++             // Clear the current buffer before appending more data.
++@@ -722,14 +712,7 @@ impl<R: Read> Reader<R> {
++                     self.subframe.consumed_and_flushed = true;
++                 }
++                 None => {
++-                    return Err(DecodingError::Format(
++-                        if self.data_stream.is_empty() {
++-                            FormatErrorInner::NoMoreImageData
++-                        } else {
++-                            FormatErrorInner::UnexpectedEndOfChunk
++-                        }
++-                        .into(),
++-                    ));
+++                    return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
++                 }
++                 _ => (),
++             }
++diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs
++index 0f0c58d..3b6ccb6 100644
++--- a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs
+++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs
++@@ -160,10 +160,6 @@ pub(crate) enum FormatErrorInner {
++     },
++     /// Not a PNG, the magic signature is missing.
++     InvalidSignature,
++-    /// End of file, within a chunk event.
++-    UnexpectedEof,
++-    /// End of file, while expecting more image data.
++-    UnexpectedEndOfChunk,
++     // Errors of chunk level ordering, missing etc.
++     /// Ihdr must occur.
++     MissingIhdr,
++@@ -232,8 +228,6 @@ pub(crate) enum FormatErrorInner {
++     CorruptFlateStream {
++         err: fdeflate::DecompressionError,
++     },
++-    /// The image data chunk was too short for the expected pixel count.
++-    NoMoreImageData,
++     /// Bad text encoding
++     BadTextEncoding(TextDecodingError),
++     /// fdAT shorter than 4 bytes
++@@ -323,9 +317,6 @@ impl fmt::Display for FormatError {
++             UnknownInterlaceMethod(nr) => write!(fmt, "Unknown interlace method {}.", nr),
++             BadSubFrameBounds {} => write!(fmt, "Sub frame is out-of-bounds."),
++             InvalidSignature => write!(fmt, "Invalid PNG signature."),
++-            UnexpectedEof => write!(fmt, "Unexpected end of data before image end."),
++-            UnexpectedEndOfChunk => write!(fmt, "Unexpected end of data within a chunk."),
++-            NoMoreImageData => write!(fmt, "IDAT or fDAT chunk is has not enough data for image."),
++             CorruptFlateStream { err } => {
++                 write!(fmt, "Corrupt deflate stream. ")?;
++                 write!(fmt, "{:?}", err)
++-- 
++2.46.0.662.g92d0881bb0-goog
++
+diff --git a/third_party/rust/chromium_crates_io/patches/png/0203-Support-for-resuming-decoding-after-UnexpectedEof.patch b/third_party/rust/chromium_crates_io/patches/png/0203-Support-for-resuming-decoding-after-UnexpectedEof.patch
+new file mode 100644
+index 00000000000000..e008f0d1a731ab
+--- /dev/null
++++ b/third_party/rust/chromium_crates_io/patches/png/0203-Support-for-resuming-decoding-after-UnexpectedEof.patch
+@@ -0,0 +1,336 @@
++From 5efbb60ab8eb1ac928b7ddc1a5946d0ed7f47e7b Mon Sep 17 00:00:00 2001
++From: Lukasz Anforowicz <lukasza@chromium.org>
++Date: Wed, 4 Sep 2024 02:18:49 +0000
++Subject: [PATCH 203/203] Support for resuming decoding after `UnexpectedEof`.
++
++This commit supports resuming decoding after `UnexpectedEof`:
++
++* Before this commit `fn next_interlaced_row` would unconditionally call
++  `InterlaceInfoIter.next` - advancing to the next row.  After this
++  commit this will only happen after a row has been successfully
++  decoded (inside `next_interlaced_row_impl` because advancing needs
++  to be synchronized across the public `next_frame` and
++  `next_interlaced_row` APIs)..
++* Before this commit `fn next_frame` would always start decoding into
++  the very beginning of `buf`, even if these initial rows have already
++  been successfully decoded earlier.  After this commit an offset is
++  calculated based on `InterlaceInfo.line_number`.
++* Before this commit `fn next_frame` would always reset `data_stream`,
++  `current_start`, and `prev_start`.  After this commit, this got moved
++  and only happens inside `read_until_image_data`.
++---
++ src/decoder/mod.rs    |  30 ++++---
++ src/decoder/stream.rs | 181 +++++++++++++++++++++++++++++++++++++++++-
++ 2 files changed, 200 insertions(+), 11 deletions(-)
++
++diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
++index 94a95bb..91adbc9 100644
++--- a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
+++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
++@@ -381,12 +381,13 @@ struct SubframeInfo {
++     width: u32,
++     height: u32,
++     rowlen: usize,
++-    interlace: InterlaceInfoIter,
+++    current_interlace_info: Option<InterlaceInfo>,
+++    interlace_info_iter: InterlaceInfoIter,
++     consumed_and_flushed: bool,
++ }
++ 
++ /// Denote a frame as given by sequence numbers.
++-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+++#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
++ enum SubframeIdx {
++     /// The initial frame in an IDAT chunk without fcTL chunk applying to it.
++     /// Note that this variant precedes `Some` as IDAT frames precede fdAT frames and all fdAT
++@@ -439,6 +440,9 @@ impl<R: Read> Reader<R> {
++             .ok_or(DecodingError::Format(FormatErrorInner::MissingIhdr.into()))?;
++         self.bpp = info.bpp_in_prediction();
++         self.subframe = SubframeInfo::new(info);
+++        self.data_stream.clear();
+++        self.current_start = 0;
+++        self.prev_start = 0;
++ 
++         // Allocate output buffer.
++         let buflen = self.output_line_size(self.subframe.width);
++@@ -503,9 +507,6 @@ impl<R: Read> Reader<R> {
++             line_size: self.output_line_size(self.subframe.width),
++         };
++ 
++-        self.data_stream.clear();
++-        self.current_start = 0;
++-        self.prev_start = 0;
++         if self.info().interlaced {
++             let stride = self.output_line_size(self.info().width);
++             let samples = color_type.samples() as u8;
++@@ -521,9 +522,15 @@ impl<R: Read> Reader<R> {
++                 adam7::expand_pass(buf, stride, row, adam7info, bits_pp);
++             }
++         } else {
+++            let current_interlace_info = self.subframe.current_interlace_info.as_ref();
+++            let already_done_rows = current_interlace_info
+++                .map(|info| info.line_number())
+++                .unwrap_or(self.subframe.height);
+++
++             for row in buf
++                 .chunks_exact_mut(output_info.line_size)
++                 .take(self.subframe.height as usize)
+++                .skip(already_done_rows as usize)
++             {
++                 self.next_interlaced_row_impl(self.subframe.rowlen, row)?;
++             }
++@@ -563,9 +570,9 @@ impl<R: Read> Reader<R> {
++ 
++     /// Returns the next processed row of the image
++     pub fn next_interlaced_row(&mut self) -> Result<Option<InterlacedRow>, DecodingError> {
++-        let interlace = match self.subframe.interlace.next() {
+++        let interlace = match self.subframe.current_interlace_info.as_ref() {
++             None => return Ok(None),
++-            Some(interlace) => interlace,
+++            Some(interlace) => *interlace,
++         };
++         if interlace.line_number() == 0 {
++             self.prev_start = self.current_start;
++@@ -634,6 +641,7 @@ impl<R: Read> Reader<R> {
++         };
++         transform_fn(row, output_buffer, self.info());
++ 
+++        self.subframe.current_interlace_info = self.subframe.interlace_info_iter.next();
++         Ok(())
++     }
++ 
++@@ -745,7 +753,8 @@ impl SubframeInfo {
++             width: 0,
++             height: 0,
++             rowlen: 0,
++-            interlace: InterlaceInfoIter::empty(),
+++            current_interlace_info: None,
+++            interlace_info_iter: InterlaceInfoIter::empty(),
++             consumed_and_flushed: false,
++         }
++     }
++@@ -759,11 +768,14 @@ impl SubframeInfo {
++             (info.width, info.height)
++         };
++ 
+++        let mut interlace_info_iter = InterlaceInfoIter::new(width, height, info.interlaced);
+++        let current_interlace_info = interlace_info_iter.next();
++         SubframeInfo {
++             width,
++             height,
++             rowlen: info.raw_row_length_from_width(width),
++-            interlace: InterlaceInfoIter::new(width, height, info.interlaced),
+++            current_interlace_info,
+++            interlace_info_iter,
++             consumed_and_flushed: false,
++         }
++     }
++diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs
++index 3b6ccb6..6afaf19 100644
++--- a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs
+++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs
++@@ -108,6 +108,11 @@ pub enum Decoded {
++ #[derive(Debug)]
++ pub enum DecodingError {
++     /// An error in IO of the underlying reader.
+++    ///
+++    /// Note that some IO errors may be recoverable - decoding may be retried after the
+++    /// error is resolved.  For example, decoding from a slow stream of data (e.g. decoding from a
+++    /// network stream) may occasionally result in [std::io::ErrorKind::UnexpectedEof] kind of
+++    /// error, but decoding can resume when more data becomes available.
++     IoError(io::Error),
++     /// The input image was not a valid PNG.
++     ///
++@@ -1498,10 +1503,12 @@ mod tests {
++     use super::ScaledFloat;
++     use super::SourceChromaticities;
++     use crate::test_utils::*;
++-    use crate::{Decoder, DecodingError};
+++    use crate::{Decoder, DecodingError, Reader};
++     use byteorder::WriteBytesExt;
+++    use std::cell::RefCell;
++     use std::fs::File;
++-    use std::io::Write;
+++    use std::io::{ErrorKind, Read, Write};
+++    use std::rc::Rc;
++ 
++     #[test]
++     fn image_gamma() -> Result<(), ()> {
++@@ -1964,4 +1971,174 @@ mod tests {
++         reader.next_frame(&mut buf).unwrap();
++         assert_eq!(3093270825, crc32fast::hash(&buf));
++     }
+++
+++    /// `StremingInput` can be used by tests to simulate a streaming input
+++    /// (e.g. a slow http response, where all bytes are not immediately available).
+++    #[derive(Clone)]
+++    struct StreamingInput(Rc<RefCell<StreamingInputState>>);
+++
+++    struct StreamingInputState {
+++        full_input: Vec<u8>,
+++        current_pos: usize,
+++        available_len: usize,
+++    }
+++
+++    impl StreamingInput {
+++        fn new(full_input: Vec<u8>) -> Self {
+++            Self(Rc::new(RefCell::new(StreamingInputState {
+++                full_input,
+++                current_pos: 0,
+++                available_len: 0,
+++            })))
+++        }
+++
+++        fn with_noncompressed_png(width: u32, idat_size: usize) -> Self {
+++            let mut png = Vec::new();
+++            write_noncompressed_png(&mut png, width, idat_size);
+++            Self::new(png)
+++        }
+++
+++        fn expose_next_byte(&self) {
+++            let mut state = self.0.borrow_mut();
+++            assert!(state.available_len < state.full_input.len());
+++            state.available_len += 1;
+++        }
+++
+++        fn stream_input_until_reader_is_available(&self) -> Reader<StreamingInput> {
+++            loop {
+++                self.0.borrow_mut().current_pos = 0;
+++                match Decoder::new(self.clone()).read_info() {
+++                    Ok(reader) => {
+++                        break reader;
+++                    }
+++                    Err(DecodingError::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => {
+++                        self.expose_next_byte();
+++                    }
+++                    _ => panic!("Unexpected error"),
+++                }
+++            }
+++        }
+++
+++        fn decode_full_input<F, R>(&self, f: F) -> R
+++        where
+++            F: FnOnce(Reader<&[u8]>) -> R,
+++        {
+++            let state = self.0.borrow();
+++            let decoder = Decoder::new(state.full_input.as_slice());
+++            f(decoder.read_info().unwrap())
+++        }
+++    }
+++
+++    impl Read for StreamingInput {
+++        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+++            let mut state = self.0.borrow_mut();
+++            let mut available_bytes = &state.full_input[state.current_pos..state.available_len];
+++            let number_of_read_bytes = available_bytes.read(buf)?;
+++            state.current_pos += number_of_read_bytes;
+++            assert!(state.current_pos <= state.available_len);
+++            Ok(number_of_read_bytes)
+++        }
+++    }
+++
+++    /// Test resuming/retrying `Reader.next_frame` after `UnexpectedEof`.
+++    #[test]
+++    fn test_streaming_input_and_decoding_via_next_frame() {
+++        const WIDTH: u32 = 16;
+++        const IDAT_SIZE: usize = 512;
+++        let streaming_input = StreamingInput::with_noncompressed_png(WIDTH, IDAT_SIZE);
+++
+++        let (whole_output_info, decoded_from_whole_input) =
+++            streaming_input.decode_full_input(|mut r| {
+++                let mut buf = vec![0; r.output_buffer_size()];
+++                let output_info = r.next_frame(&mut buf).unwrap();
+++                (output_info, buf)
+++            });
+++
+++        let mut png_reader = streaming_input.stream_input_until_reader_is_available();
+++        let mut decoded_from_streaming_input = vec![0; png_reader.output_buffer_size()];
+++        let streaming_output_info = loop {
+++            match png_reader.next_frame(decoded_from_streaming_input.as_mut_slice()) {
+++                Ok(output_info) => break output_info,
+++                Err(DecodingError::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => {
+++                    streaming_input.expose_next_byte()
+++                }
+++                e => panic!("Unexpected error: {:?}", e),
+++            }
+++        };
+++        assert_eq!(whole_output_info, streaming_output_info);
+++        assert_eq!(
+++            crc32fast::hash(&decoded_from_whole_input),
+++            crc32fast::hash(&decoded_from_streaming_input)
+++        );
+++    }
+++
+++    /// Test resuming/retrying `Reader.next_row` after `UnexpectedEof`.
+++    #[test]
+++    fn test_streaming_input_and_decoding_via_next_row() {
+++        const WIDTH: u32 = 16;
+++        const IDAT_SIZE: usize = 512;
+++        let streaming_input = StreamingInput::with_noncompressed_png(WIDTH, IDAT_SIZE);
+++
+++        let decoded_from_whole_input = streaming_input.decode_full_input(|mut r| {
+++            let mut buf = vec![0; r.output_buffer_size()];
+++            r.next_frame(&mut buf).unwrap();
+++            buf
+++        });
+++
+++        let mut png_reader = streaming_input.stream_input_until_reader_is_available();
+++        let mut decoded_from_streaming_input = Vec::new();
+++        loop {
+++            match png_reader.next_row() {
+++                Ok(None) => break,
+++                Ok(Some(row)) => decoded_from_streaming_input.extend_from_slice(row.data()),
+++                Err(DecodingError::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => {
+++                    streaming_input.expose_next_byte()
+++                }
+++                e => panic!("Unexpected error: {:?}", e),
+++            }
+++        }
+++        assert_eq!(
+++            crc32fast::hash(&decoded_from_whole_input),
+++            crc32fast::hash(&decoded_from_streaming_input)
+++        );
+++    }
+++
+++    /// Test resuming/retrying `Decoder.read_header_info` after `UnexpectedEof`.
+++    #[test]
+++    fn test_streaming_input_and_reading_header_info() {
+++        const WIDTH: u32 = 16;
+++        const IDAT_SIZE: usize = 512;
+++        let streaming_input = StreamingInput::with_noncompressed_png(WIDTH, IDAT_SIZE);
+++
+++        let info_from_whole_input = streaming_input.decode_full_input(|r| r.info().clone());
+++
+++        let mut decoder = Decoder::new(streaming_input.clone());
+++        let info_from_streaming_input = loop {
+++            match decoder.read_header_info() {
+++                Ok(info) => break info.clone(),
+++                Err(DecodingError::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => {
+++                    streaming_input.expose_next_byte()
+++                }
+++                e => panic!("Unexpected error: {:?}", e),
+++            }
+++        };
+++
+++        assert_eq!(info_from_whole_input.width, info_from_streaming_input.width);
+++        assert_eq!(
+++            info_from_whole_input.height,
+++            info_from_streaming_input.height
+++        );
+++        assert_eq!(
+++            info_from_whole_input.bit_depth,
+++            info_from_streaming_input.bit_depth
+++        );
+++        assert_eq!(
+++            info_from_whole_input.color_type,
+++            info_from_streaming_input.color_type
+++        );
+++        assert_eq!(
+++            info_from_whole_input.interlaced,
+++            info_from_streaming_input.interlaced
+++        );
+++    }
++ }
++-- 
++2.46.0.662.g92d0881bb0-goog
++
+diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/adam7.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/adam7.rs
+index 8016b8bee1087d..75acf02aa7cb11 100644
+--- a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/adam7.rs
++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/adam7.rs
+@@ -5,7 +5,7 @@
+ /// [the Adam7 algorithm](https://en.wikipedia.org/wiki/Adam7_algorithm)
+ /// applies to a decoded row.
+ ///
+-/// See also [crate::decoder::Reader::next_interlaced_row].
++/// See also [Reader.next_interlaced_row](crate::decoder::Reader::next_interlaced_row).
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ pub struct Adam7Info {
+     pub(crate) pass: u8,
+@@ -27,10 +27,10 @@ impl Adam7Info {
+     ///   in the 1st `pass`, the `width` is be 1/8th of the image width (rounded up as
+     ///   necessary).
+     ///
+-    /// Note that in typical usage, `Adam7Info`s are returned by [Reader::next_interlaced_row]
++    /// Note that in typical usage, `Adam7Info`s are returned by [Reader.next_interlaced_row]
+     /// and there is no need to create them by calling `Adam7Info::new`.  `Adam7Info::new` is
+     /// nevertheless exposed as a public API, because it helps to provide self-contained example
+-    /// usage of [expand_interlaced_row].
++    /// usage of [expand_interlaced_row](crate::expand_interlaced_row).
+     pub fn new(pass: u8, line: u32, width: u32) -> Self {
+         assert!(1 <= pass && pass <= 7);
+         assert!(width > 0);
+@@ -92,11 +92,6 @@ impl Adam7Iterator {
+         self.lines = lines.ceil() as u32;
+         self.line = 0;
+     }
+-
+-    /// The current pass#.
+-    pub fn current_pass(&self) -> u8 {
+-        self.current_pass
+-    }
+ }
+ 
+ /// Iterates over `Adam7Info`s.
+diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/interlace_info.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/interlace_info.rs
+new file mode 100644
+index 00000000000000..4201fff11dc571
+--- /dev/null
++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/interlace_info.rs
+@@ -0,0 +1,128 @@
++use std::ops::Range;
++
++use crate::adam7::{Adam7Info, Adam7Iterator};
++
++/// Describes which interlacing algorithm applies to a decoded row.
++///
++/// PNG (2003) specifies two interlace modes, but reserves future extensions.
++///
++/// See also [Reader.next_interlaced_row](crate::Reader::next_interlaced_row).
++#[derive(Clone, Copy, Debug)]
++pub enum InterlaceInfo {
++    /// The `null` method means no interlacing.
++    Null(NullInfo),
++    /// [The `Adam7` algorithm](https://en.wikipedia.org/wiki/Adam7_algorithm) derives its name
++    /// from doing 7 passes over the image, only decoding a subset of all pixels in each pass.
++    /// The following table shows pictorially what parts of each 8x8 area of the image is found in
++    /// each pass:
++    ///
++    /// ```txt
++    /// 1 6 4 6 2 6 4 6
++    /// 7 7 7 7 7 7 7 7
++    /// 5 6 5 6 5 6 5 6
++    /// 7 7 7 7 7 7 7 7
++    /// 3 6 4 6 3 6 4 6
++    /// 7 7 7 7 7 7 7 7
++    /// 5 6 5 6 5 6 5 6
++    /// 7 7 7 7 7 7 7 7
++    /// ```
++    Adam7(Adam7Info),
++}
++
++#[derive(Clone, Copy, Debug)]
++pub struct NullInfo {
++    line: u32,
++}
++
++impl InterlaceInfo {
++    pub(crate) fn line_number(&self) -> u32 {
++        match self {
++            InterlaceInfo::Null(NullInfo { line }) => *line,
++            InterlaceInfo::Adam7(Adam7Info { line, .. }) => *line,
++        }
++    }
++
++    pub(crate) fn get_adam7_info(&self) -> Option<&Adam7Info> {
++        match self {
++            InterlaceInfo::Null(_) => None,
++            InterlaceInfo::Adam7(adam7info) => Some(adam7info),
++        }
++    }
++}
++
++pub(crate) struct InterlaceInfoIter(IterImpl);
++
++impl InterlaceInfoIter {
++    pub fn empty() -> Self {
++        Self(IterImpl::None(0..0))
++    }
++
++    pub fn new(width: u32, height: u32, interlaced: bool) -> Self {
++        if interlaced {
++            Self(IterImpl::Adam7(Adam7Iterator::new(width, height)))
++        } else {
++            Self(IterImpl::None(0..height))
++        }
++    }
++}
++
++impl Iterator for InterlaceInfoIter {
++    type Item = InterlaceInfo;
++
++    fn next(&mut self) -> Option<InterlaceInfo> {
++        match self.0 {
++            IterImpl::Adam7(ref mut adam7) => Some(InterlaceInfo::Adam7(adam7.next()?)),
++            IterImpl::None(ref mut height) => Some(InterlaceInfo::Null(NullInfo {
++                line: height.next()?,
++            })),
++        }
++    }
++}
++
++enum IterImpl {
++    None(Range<u32>),
++    Adam7(Adam7Iterator),
++}
++
++#[cfg(test)]
++mod test {
++    use super::*;
++
++    #[test]
++    fn null() {
++        assert_eq!(
++            InterlaceInfoIter::new(8, 8, false)
++                .map(|info| info.line_number())
++                .collect::<Vec<_>>(),
++            vec![0, 1, 2, 3, 4, 5, 6, 7],
++        );
++    }
++
++    #[test]
++    fn adam7() {
++        assert_eq!(
++            InterlaceInfoIter::new(8, 8, true)
++                .map(|info| info.line_number())
++                .collect::<Vec<_>>(),
++            vec![
++                0, // pass 1
++                0, // pass 2
++                0, // pass 3
++                0, 1, // pass 4
++                0, 1, // pass 5
++                0, 1, 2, 3, // pass 6
++                0, 1, 2, 3, // pass 7
++            ],
++        );
++    }
++
++    #[test]
++    fn empty() {
++        assert_eq!(
++            InterlaceInfoIter::empty()
++                .map(|info| info.line_number())
++                .collect::<Vec<_>>(),
++            vec![],
++        );
++    }
++}
+diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
+index 7ee62875f96a8a..6450ac830e886c 100644
+--- a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs
+@@ -1,3 +1,4 @@
++mod interlace_info;
+ mod stream;
+ pub(crate) mod transform;
+ mod zlib;
+@@ -8,15 +9,17 @@ use self::transform::{create_transform_fn, TransformFn};
+ 
+ use std::io::{BufRead, BufReader, Read};
+ use std::mem;
+-use std::ops::Range;
+ 
+-use crate::adam7;
++use crate::adam7::{self, Adam7Info};
+ use crate::chunk;
+ use crate::common::{
+     BitDepth, BytesPerPixel, ColorType, Info, ParameterErrorKind, Transformations,
+ };
+ use crate::filter::{unfilter, FilterType};
+ 
++pub use interlace_info::InterlaceInfo;
++use interlace_info::InterlaceInfoIter;
++
+ /*
+ pub enum InterlaceHandling {
+     /// Outputs the raw rows
+@@ -104,42 +107,6 @@ impl<'data> InterlacedRow<'data> {
+     }
+ }
+ 
+-/// Describes which interlacing algorithm applies to a decoded row.
+-///
+-/// PNG (2003) specifies two interlace modes, but reserves future extensions.
+-///
+-/// See also [Reader::next_interlaced_row].
+-#[derive(Clone, Copy, Debug)]
+-pub enum InterlaceInfo {
+-    /// The `null` method means no interlacing.
+-    Null,
+-    /// [The `Adam7` algorithm](https://en.wikipedia.org/wiki/Adam7_algorithm) derives its name
+-    /// from doing 7 passes over the image, only decoding a subset of all pixels in each pass.
+-    /// The following table shows pictorially what parts of each 8x8 area of the image is found in
+-    /// each pass:
+-    ///
+-    /// ```txt
+-    /// 1 6 4 6 2 6 4 6
+-    /// 7 7 7 7 7 7 7 7
+-    /// 5 6 5 6 5 6 5 6
+-    /// 7 7 7 7 7 7 7 7
+-    /// 3 6 4 6 3 6 4 6
+-    /// 7 7 7 7 7 7 7 7
+-    /// 5 6 5 6 5 6 5 6
+-    /// 7 7 7 7 7 7 7 7
+-    /// ```
+-    Adam7(adam7::Adam7Info),
+-}
+-
+-impl InterlaceInfo {
+-    fn get_adam7_info(&self) -> Option<&adam7::Adam7Info> {
+-        match self {
+-            InterlaceInfo::Null => None,
+-            InterlaceInfo::Adam7(adam7info) => Some(adam7info),
+-        }
+-    }
+-}
+-
+ /// A row of data without interlace information.
+ #[derive(Clone, Copy, Debug)]
+ pub struct Row<'data> {
+@@ -224,9 +191,7 @@ impl<R: Read> Decoder<R> {
+         while self.read_decoder.info().is_none() {
+             buf.clear();
+             if self.read_decoder.decode_next(&mut buf)?.is_none() {
+-                return Err(DecodingError::Format(
+-                    FormatErrorInner::UnexpectedEof.into(),
+-                ));
++                return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
+             }
+         }
+         Ok(self.read_decoder.info().unwrap())
+@@ -320,9 +285,7 @@ impl<R: Read> ReadDecoder<R> {
+             let (consumed, result) = {
+                 let buf = self.reader.fill_buf()?;
+                 if buf.is_empty() {
+-                    return Err(DecodingError::Format(
+-                        FormatErrorInner::UnexpectedEof.into(),
+-                    ));
++                    return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
+                 }
+                 self.decoder.update(buf, image_data)?
+             };
+@@ -340,9 +303,7 @@ impl<R: Read> ReadDecoder<R> {
+         while !self.at_eof {
+             let buf = self.reader.fill_buf()?;
+             if buf.is_empty() {
+-                return Err(DecodingError::Format(
+-                    FormatErrorInner::UnexpectedEof.into(),
+-                ));
++                return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
+             }
+             let (consumed, event) = self.decoder.update(buf, &mut vec![])?;
+             self.reader.consume(consumed);
+@@ -357,9 +318,7 @@ impl<R: Read> ReadDecoder<R> {
+             }
+         }
+ 
+-        Err(DecodingError::Format(
+-            FormatErrorInner::UnexpectedEof.into(),
+-        ))
++        Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()))
+     }
+ 
+     fn info(&self) -> Option<&Info<'static>> {
+@@ -406,18 +365,13 @@ struct SubframeInfo {
+     width: u32,
+     height: u32,
+     rowlen: usize,
+-    interlace: InterlaceIter,
++    current_interlace_info: Option<InterlaceInfo>,
++    interlace_info_iter: InterlaceInfoIter,
+     consumed_and_flushed: bool,
+ }
+ 
+-#[derive(Clone)]
+-enum InterlaceIter {
+-    None(Range<u32>),
+-    Adam7(adam7::Adam7Iterator),
+-}
+-
+ /// Denote a frame as given by sequence numbers.
+-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
++#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+ enum SubframeIdx {
+     /// The initial frame in an IDAT chunk without fcTL chunk applying to it.
+     /// Note that this variant precedes `Some` as IDAT frames precede fdAT frames and all fdAT
+@@ -470,6 +424,9 @@ impl<R: Read> Reader<R> {
+             .ok_or(DecodingError::Format(FormatErrorInner::MissingIhdr.into()))?;
+         self.bpp = info.bpp_in_prediction();
+         self.subframe = SubframeInfo::new(info);
++        self.data_stream.clear();
++        self.current_start = 0;
++        self.prev_start = 0;
+ 
+         // Allocate output buffer.
+         let buflen = self.output_line_size(self.subframe.width);
+@@ -534,9 +491,6 @@ impl<R: Read> Reader<R> {
+             line_size: self.output_line_size(self.subframe.width),
+         };
+ 
+-        self.data_stream.clear();
+-        self.current_start = 0;
+-        self.prev_start = 0;
+         if self.info().interlaced {
+             let stride = self.output_line_size(self.info().width);
+             let samples = color_type.samples() as u8;
+@@ -549,12 +503,18 @@ impl<R: Read> Reader<R> {
+             {
+                 // `unwrap` won't panic, because we checked `self.info().interlaced` above.
+                 let adam7info = interlace.get_adam7_info().unwrap();
+-                adam7::expand_pass(buf, stride, row, &adam7info, bits_pp);
++                adam7::expand_pass(buf, stride, row, adam7info, bits_pp);
+             }
+         } else {
++            let current_interlace_info = self.subframe.current_interlace_info.as_ref();
++            let already_done_rows = current_interlace_info
++                .map(|info| info.line_number())
++                .unwrap_or(self.subframe.height);
++
+             for row in buf
+                 .chunks_exact_mut(output_info.line_size)
+                 .take(self.subframe.height as usize)
++                .skip(already_done_rows as usize)
+             {
+                 self.next_interlaced_row_impl(self.subframe.rowlen, row)?;
+             }
+@@ -594,15 +554,22 @@ impl<R: Read> Reader<R> {
+ 
+     /// Returns the next processed row of the image
+     pub fn next_interlaced_row(&mut self) -> Result<Option<InterlacedRow>, DecodingError> {
+-        let (rowlen, interlace) = match self.next_pass() {
+-            Some((rowlen, interlace)) => (rowlen, interlace),
++        let interlace = match self.subframe.current_interlace_info.as_ref() {
+             None => return Ok(None),
++            Some(interlace) => *interlace,
+         };
+-
+-        let width = if let InterlaceInfo::Adam7(adam7::Adam7Info { width, .. }) = interlace {
+-            width
+-        } else {
+-            self.subframe.width
++        if interlace.line_number() == 0 {
++            self.prev_start = self.current_start;
++        }
++        let rowlen = match interlace {
++            InterlaceInfo::Null(_) => self.subframe.rowlen,
++            InterlaceInfo::Adam7(Adam7Info { width, .. }) => {
++                self.info().raw_row_length_from_width(width)
++            }
++        };
++        let width = match interlace {
++            InterlaceInfo::Adam7(Adam7Info { width, .. }) => width,
++            InterlaceInfo::Null(_) => self.subframe.width,
+         };
+         let output_line_size = self.output_line_size(width);
+ 
+@@ -658,6 +625,7 @@ impl<R: Read> Reader<R> {
+         };
+         transform_fn(row, output_buffer, self.info());
+ 
++        self.subframe.current_interlace_info = self.subframe.interlace_info_iter.next();
+         Ok(())
+     }
+ 
+@@ -711,24 +679,6 @@ impl<R: Read> Reader<R> {
+         color.raw_row_length_from_width(depth, width) - 1
+     }
+ 
+-    fn next_pass(&mut self) -> Option<(usize, InterlaceInfo)> {
+-        match self.subframe.interlace {
+-            InterlaceIter::Adam7(ref mut adam7) => {
+-                let last_pass = adam7.current_pass();
+-                let adam7info = adam7.next()?;
+-                let rowlen = self.info().raw_row_length_from_width(adam7info.width);
+-                if last_pass != adam7info.pass {
+-                    self.prev_start = self.current_start;
+-                }
+-                Some((rowlen, InterlaceInfo::Adam7(adam7info)))
+-            }
+-            InterlaceIter::None(ref mut height) => {
+-                let _ = height.next()?;
+-                Some((self.subframe.rowlen, InterlaceInfo::Null))
+-            }
+-        }
+-    }
+-
+     /// Write the next raw interlaced row into `self.prev`.
+     ///
+     /// The scanline is filtered against the previous scanline according to the specification.
+@@ -736,9 +686,7 @@ impl<R: Read> Reader<R> {
+         // Read image data until we have at least one full row (but possibly more than one).
+         while self.data_stream.len() - self.current_start < rowlen {
+             if self.subframe.consumed_and_flushed {
+-                return Err(DecodingError::Format(
+-                    FormatErrorInner::NoMoreImageData.into(),
+-                ));
++                return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
+             }
+ 
+             // Clear the current buffer before appending more data.
+@@ -756,14 +704,7 @@ impl<R: Read> Reader<R> {
+                     self.subframe.consumed_and_flushed = true;
+                 }
+                 None => {
+-                    return Err(DecodingError::Format(
+-                        if self.data_stream.is_empty() {
+-                            FormatErrorInner::NoMoreImageData
+-                        } else {
+-                            FormatErrorInner::UnexpectedEndOfChunk
+-                        }
+-                        .into(),
+-                    ));
++                    return Err(DecodingError::IoError(std::io::ErrorKind::UnexpectedEof.into()));
+                 }
+                 _ => (),
+             }
+@@ -796,7 +737,8 @@ impl SubframeInfo {
+             width: 0,
+             height: 0,
+             rowlen: 0,
+-            interlace: InterlaceIter::None(0..0),
++            current_interlace_info: None,
++            interlace_info_iter: InterlaceInfoIter::empty(),
+             consumed_and_flushed: false,
+         }
+     }
+@@ -810,17 +752,14 @@ impl SubframeInfo {
+             (info.width, info.height)
+         };
+ 
+-        let interlace = if info.interlaced {
+-            InterlaceIter::Adam7(adam7::Adam7Iterator::new(width, height))
+-        } else {
+-            InterlaceIter::None(0..height)
+-        };
+-
++        let mut interlace_info_iter = InterlaceInfoIter::new(width, height, info.interlaced);
++        let current_interlace_info = interlace_info_iter.next();
+         SubframeInfo {
+             width,
+             height,
+             rowlen: info.raw_row_length_from_width(width),
+-            interlace,
++            current_interlace_info,
++            interlace_info_iter,
+             consumed_and_flushed: false,
+         }
+     }
+diff --git a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs
+index 584bdfaf3d6bfa..207c0c8e548e23 100644
+--- a/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs
++++ b/third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs
+@@ -111,6 +111,11 @@ pub enum Decoded {
+ #[derive(Debug)]
+ pub enum DecodingError {
+     /// An error in IO of the underlying reader.
++    ///
++    /// Note that some IO errors may be recoverable - decoding may be retried after the
++    /// error is resolved.  For example, decoding from a slow stream of data (e.g. decoding from a
++    /// network stream) may occasionally result in [std::io::ErrorKind::UnexpectedEof] kind of
++    /// error, but decoding can resume when more data becomes available.
+     IoError(io::Error),
+     /// The input image was not a valid PNG.
+     ///
+@@ -163,10 +168,6 @@ pub(crate) enum FormatErrorInner {
+     },
+     /// Not a PNG, the magic signature is missing.
+     InvalidSignature,
+-    /// End of file, within a chunk event.
+-    UnexpectedEof,
+-    /// End of file, while expecting more image data.
+-    UnexpectedEndOfChunk,
+     // Errors of chunk level ordering, missing etc.
+     /// Ihdr must occur.
+     MissingIhdr,
+@@ -235,8 +236,6 @@ pub(crate) enum FormatErrorInner {
+     CorruptFlateStream {
+         err: fdeflate::DecompressionError,
+     },
+-    /// The image data chunk was too short for the expected pixel count.
+-    NoMoreImageData,
+     /// Bad text encoding
+     BadTextEncoding(TextDecodingError),
+     /// fdAT shorter than 4 bytes
+@@ -326,9 +325,6 @@ impl fmt::Display for FormatError {
+             UnknownInterlaceMethod(nr) => write!(fmt, "Unknown interlace method {}.", nr),
+             BadSubFrameBounds {} => write!(fmt, "Sub frame is out-of-bounds."),
+             InvalidSignature => write!(fmt, "Invalid PNG signature."),
+-            UnexpectedEof => write!(fmt, "Unexpected end of data before image end."),
+-            UnexpectedEndOfChunk => write!(fmt, "Unexpected end of data within a chunk."),
+-            NoMoreImageData => write!(fmt, "IDAT or fDAT chunk is has not enough data for image."),
+             CorruptFlateStream { err } => {
+                 write!(fmt, "Corrupt deflate stream. ")?;
+                 write!(fmt, "{:?}", err)
+@@ -1488,10 +1484,12 @@ mod tests {
+     use super::ScaledFloat;
+     use super::SourceChromaticities;
+     use crate::test_utils::*;
+-    use crate::{Decoder, DecodingError};
++    use crate::{Decoder, DecodingError, Reader};
+     use byteorder::WriteBytesExt;
++    use std::cell::RefCell;
+     use std::fs::File;
+-    use std::io::Write;
++    use std::io::{ErrorKind, Read, Write};
++    use std::rc::Rc;
+ 
+     #[test]
+     fn image_gamma() -> Result<(), ()> {
+@@ -1945,4 +1943,174 @@ mod tests {
+         reader.next_frame(&mut buf).unwrap();
+         assert_eq!(3093270825, crc32fast::hash(&buf));
+     }
++
++    /// `StremingInput` can be used by tests to simulate a streaming input
++    /// (e.g. a slow http response, where all bytes are not immediately available).
++    #[derive(Clone)]
++    struct StreamingInput(Rc<RefCell<StreamingInputState>>);
++
++    struct StreamingInputState {
++        full_input: Vec<u8>,
++        current_pos: usize,
++        available_len: usize,
++    }
++
++    impl StreamingInput {
++        fn new(full_input: Vec<u8>) -> Self {
++            Self(Rc::new(RefCell::new(StreamingInputState {
++                full_input,
++                current_pos: 0,
++                available_len: 0,
++            })))
++        }
++
++        fn with_noncompressed_png(width: u32, idat_size: usize) -> Self {
++            let mut png = Vec::new();
++            write_noncompressed_png(&mut png, width, idat_size);
++            Self::new(png)
++        }
++
++        fn expose_next_byte(&self) {
++            let mut state = self.0.borrow_mut();
++            assert!(state.available_len < state.full_input.len());
++            state.available_len += 1;
++        }
++
++        fn stream_input_until_reader_is_available(&self) -> Reader<StreamingInput> {
++            loop {
++                self.0.borrow_mut().current_pos = 0;
++                match Decoder::new(self.clone()).read_info() {
++                    Ok(reader) => {
++                        break reader;
++                    }
++                    Err(DecodingError::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => {
++                        self.expose_next_byte();
++                    }
++                    _ => panic!("Unexpected error"),
++                }
++            }
++        }
++
++        fn decode_full_input<F, R>(&self, f: F) -> R
++        where
++            F: FnOnce(Reader<&[u8]>) -> R,
++        {
++            let state = self.0.borrow();
++            let decoder = Decoder::new(state.full_input.as_slice());
++            f(decoder.read_info().unwrap())
++        }
++    }
++
++    impl Read for StreamingInput {
++        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
++            let mut state = self.0.borrow_mut();
++            let mut available_bytes = &state.full_input[state.current_pos..state.available_len];
++            let number_of_read_bytes = available_bytes.read(buf)?;
++            state.current_pos += number_of_read_bytes;
++            assert!(state.current_pos <= state.available_len);
++            Ok(number_of_read_bytes)
++        }
++    }
++
++    /// Test resuming/retrying `Reader.next_frame` after `UnexpectedEof`.
++    #[test]
++    fn test_streaming_input_and_decoding_via_next_frame() {
++        const WIDTH: u32 = 16;
++        const IDAT_SIZE: usize = 512;
++        let streaming_input = StreamingInput::with_noncompressed_png(WIDTH, IDAT_SIZE);
++
++        let (whole_output_info, decoded_from_whole_input) =
++            streaming_input.decode_full_input(|mut r| {
++                let mut buf = vec![0; r.output_buffer_size()];
++                let output_info = r.next_frame(&mut buf).unwrap();
++                (output_info, buf)
++            });
++
++        let mut png_reader = streaming_input.stream_input_until_reader_is_available();
++        let mut decoded_from_streaming_input = vec![0; png_reader.output_buffer_size()];
++        let streaming_output_info = loop {
++            match png_reader.next_frame(decoded_from_streaming_input.as_mut_slice()) {
++                Ok(output_info) => break output_info,
++                Err(DecodingError::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => {
++                    streaming_input.expose_next_byte()
++                }
++                e => panic!("Unexpected error: {:?}", e),
++            }
++        };
++        assert_eq!(whole_output_info, streaming_output_info);
++        assert_eq!(
++            crc32fast::hash(&decoded_from_whole_input),
++            crc32fast::hash(&decoded_from_streaming_input)
++        );
++    }
++
++    /// Test resuming/retrying `Reader.next_row` after `UnexpectedEof`.
++    #[test]
++    fn test_streaming_input_and_decoding_via_next_row() {
++        const WIDTH: u32 = 16;
++        const IDAT_SIZE: usize = 512;
++        let streaming_input = StreamingInput::with_noncompressed_png(WIDTH, IDAT_SIZE);
++
++        let decoded_from_whole_input = streaming_input.decode_full_input(|mut r| {
++            let mut buf = vec![0; r.output_buffer_size()];
++            r.next_frame(&mut buf).unwrap();
++            buf
++        });
++
++        let mut png_reader = streaming_input.stream_input_until_reader_is_available();
++        let mut decoded_from_streaming_input = Vec::new();
++        loop {
++            match png_reader.next_row() {
++                Ok(None) => break,
++                Ok(Some(row)) => decoded_from_streaming_input.extend_from_slice(row.data()),
++                Err(DecodingError::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => {
++                    streaming_input.expose_next_byte()
++                }
++                e => panic!("Unexpected error: {:?}", e),
++            }
++        }
++        assert_eq!(
++            crc32fast::hash(&decoded_from_whole_input),
++            crc32fast::hash(&decoded_from_streaming_input)
++        );
++    }
++
++    /// Test resuming/retrying `Decoder.read_header_info` after `UnexpectedEof`.
++    #[test]
++    fn test_streaming_input_and_reading_header_info() {
++        const WIDTH: u32 = 16;
++        const IDAT_SIZE: usize = 512;
++        let streaming_input = StreamingInput::with_noncompressed_png(WIDTH, IDAT_SIZE);
++
++        let info_from_whole_input = streaming_input.decode_full_input(|r| r.info().clone());
++
++        let mut decoder = Decoder::new(streaming_input.clone());
++        let info_from_streaming_input = loop {
++            match decoder.read_header_info() {
++                Ok(info) => break info.clone(),
++                Err(DecodingError::IoError(e)) if e.kind() == ErrorKind::UnexpectedEof => {
++                    streaming_input.expose_next_byte()
++                }
++                e => panic!("Unexpected error: {:?}", e),
++            }
++        };
++
++        assert_eq!(info_from_whole_input.width, info_from_streaming_input.width);
++        assert_eq!(
++            info_from_whole_input.height,
++            info_from_streaming_input.height
++        );
++        assert_eq!(
++            info_from_whole_input.bit_depth,
++            info_from_streaming_input.bit_depth
++        );
++        assert_eq!(
++            info_from_whole_input.color_type,
++            info_from_streaming_input.color_type
++        );
++        assert_eq!(
++            info_from_whole_input.interlaced,
++            info_from_streaming_input.interlaced
++        );
++    }
+ }
+diff --git a/third_party/rust/png/v0_17/BUILD.gn b/third_party/rust/png/v0_17/BUILD.gn
+index a04cb740e78d9e..0c090a40d0428d 100644
+--- a/third_party/rust/png/v0_17/BUILD.gn
++++ b/third_party/rust/png/v0_17/BUILD.gn
+@@ -19,6 +19,7 @@ cargo_crate("lib") {
+     "//third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/benchable_apis.rs",
+     "//third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/chunk.rs",
+     "//third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/common.rs",
++    "//third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/interlace_info.rs",
+     "//third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/mod.rs",
+     "//third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/stream.rs",
+     "//third_party/rust/chromium_crates_io/vendor/png-0.17.13/src/decoder/transform.rs",
