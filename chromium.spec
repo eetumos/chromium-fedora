@@ -438,6 +438,7 @@ Patch414: cargo-add-ppc64.diff
 Patch415: add-ppc64-pthread-stack-size.patch
 
 Patch900: perfetto-clang-20.patch
+Patch901: webrtc-pipewire.patch
 
 # upstream patches
 
@@ -1135,6 +1136,7 @@ cd chromium-%{version}
 %endif
 
 %patch -P900 -p1
+%patch -P901 -p1 -dthird_party/webrtc
 
 # Change shebang in all relevant files in this directory and all subdirectories
 # See `man find` for how the `-exec command {} +` syntax works
