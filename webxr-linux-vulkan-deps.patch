@@ -1,0 +1,16 @@
+diff --git a/third_party/openxr/BUILD.gn b/third_party/openxr/BUILD.gn
+index b0612f02f8..0b41046932 100644
+--- a/third_party/openxr/BUILD.gn
++++ b/third_party/openxr/BUILD.gn
+@@ -137,7 +137,10 @@ if (enable_openxr) {
+       "src/src/loader",
+     ]
+ 
+-    deps = [ "//third_party/jsoncpp" ]
++    deps = [
++        "//third_party/jsoncpp",
++        "//gpu/vulkan",
++    ]
+ 
+     public_configs = [ ":config" ]
+ 
