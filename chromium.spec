@@ -766,7 +766,7 @@ BuildRequires: ninja-build
 
 # Yes, java is needed as well..
 %if %{build_headless}
-BuildRequires:	java-1.8.0-openjdk-headless
+BuildRequires:	java-latest-openjdk-headless
 %endif
 
 BuildRequires: libevdev-devel
