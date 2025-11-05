@@ -419,6 +419,8 @@ Patch415: add-ppc64-pthread-stack-size.patch
 
 Patch900: perfetto-clang-20.patch
 Patch901: webrtc-pipewire.patch
+Patch902: webxr-linux-vulkan.patch
+Patch903: webxr-linux-vulkan-deps.patch
 
 # upstream patches
 
@@ -981,6 +983,9 @@ mv %{_sourcedir}/chromium-%{version} .
 %global buildsubdir chromium-%{version}
 cd chromium-%{version}
 
+git clone --depth=1 --revision=$(grep -oP "OpenXR-SDK.*'\K[0-9a-z]+" DEPS) \
+    https://github.com/KhronosGroup/OpenXR-SDK third_party/openxr/src
+
 ### Chromium Fedora Patches ###
 %patch -P1 -p1 -b .etc
 %patch -P8 -p1 -b .widevine-other-locations
@@ -1115,6 +1120,8 @@ cd chromium-%{version}
 
 %patch -P900 -p1
 %patch -P901 -p1 -dthird_party/webrtc
+%patch -P902 -p1
+%patch -P903 -p1
 
 # Change shebang in all relevant files in this directory and all subdirectories
 # See `man find` for how the `-exec command {} +` syntax works
@@ -1298,7 +1305,8 @@ CHROMIUM_CORE_GN_DEFINES+=' treat_warnings_as_errors=false'
 CHROMIUM_CORE_GN_DEFINES+=' use_custom_libcxx=false'
 %endif
 CHROMIUM_CORE_GN_DEFINES+=' enable_iterator_debugging=false'
-CHROMIUM_CORE_GN_DEFINES+=' enable_vr=false'
+CHROMIUM_CORE_GN_DEFINES+=' enable_vr=true'
+CHROMIUM_CORE_GN_DEFINES+=' enable_openxr=true'
 CHROMIUM_CORE_GN_DEFINES+=' build_dawn_tests=false enable_perfetto_unittests=false'
 CHROMIUM_CORE_GN_DEFINES+=' disable_fieldtrial_testing_config=true'
 CHROMIUM_CORE_GN_DEFINES+=' symbol_level=%{debug_level} blink_symbol_level=%{debug_level}'
