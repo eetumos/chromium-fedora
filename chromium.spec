@@ -490,7 +490,7 @@ BuildRequires: lld
 BuildRequires: gcc-toolset-13-libatomic-devel
 %endif
 
-BuildRequires: rustc
+BuildRequires: rustc = 1.85.1
 BuildRequires: bindgen-cli
 
 %if ! %{bundlezstd}
