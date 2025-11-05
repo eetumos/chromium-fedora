@@ -260,8 +260,8 @@
 %endif
 
 Name:	chromium%{chromium_channel}
-Version: 130.0.6723.58
-Release: 2%{?dist}
+Version: 130.0.6692.0
+Release: 1%{?dist}
 Summary: A WebKit (Blink) powered web browser that Google doesn't want you to use
 Url: http://www.chromium.org/Home
 License: BSD-3-Clause AND LGPL-2.1-or-later AND Apache-2.0 AND IJG AND MIT AND GPL-2.0-or-later AND ISC AND OpenSSL AND (MPL-1.1 OR GPL-2.0-only OR LGPL-2.0-only)
@@ -337,13 +337,6 @@ Patch353: chromium-127-aarch64-duplicate-case-value.patch
 
 # remove flag split-threshold-for-reg-with-hint, it's not supported in clang <= 17
 Patch354: chromium-126-split-threshold-for-reg-with-hint.patch
-
-# fix build error: no member named 'hardware_destructive_interference_size' in namespace 'std'
-Patch355: chromium-130-hardware_destructive_interference_size.patch
-
-# fix build error on ppc64le
-# error: static assertion failed due to requirement 'sizeof(blink::MatchedProperties) <= 12': MatchedProperties should not grow without thinking
-Patch356: chromium-130-size-assertions.patch
 
 # set clang_lib path
 Patch358: chromium-127-rust-clanglib.patch
@@ -1059,8 +1052,6 @@ cd chromium-%{version}
 %patch -P354 -p1 -b .split-threshold-for-reg-with-hint
 %endif
 
-%patch -P355 -p1 -b .hardware_destructive_interference_size
-%patch -P356 -p1 -b .size-assertions
 %patch -P358 -p1 -b .rust-clang_lib
 
 %ifarch ppc64le
