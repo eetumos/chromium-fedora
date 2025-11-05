@@ -444,7 +444,6 @@ Patch415: add-ppc64-pthread-stack-size.patch
 # For Chromium Fedora use chromium-latest.py --stable --ffmpegclean --ffmpegarm
 # If you want to include the ffmpeg arm sources append the --ffmpegarm switch
 # https://commondatastorage.googleapis.com/chromium-browser-official/chromium-%%{version}.tar.xz
-Source0: chromium-%{version}-clean.tar.xz
 Source1: README.fedora
 Source2: chromium.conf
 Source3: chromium-browser.sh
@@ -471,6 +470,8 @@ Source13: https://nodejs.org/dist/%{nodejs_version}/node-%{nodejs_version}-linux
 Source14: https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-%{esbuild_version}.tgz
 Source15: https://registry.npmjs.org/@esbuild/linux-arm64/-/linux-arm64-%{esbuild_version}.tgz
 %endif
+
+Source16: ffmpeg-clean.patch
 
 # esbuild binary from fedora
 %if 0%{?fedora}
@@ -989,7 +990,13 @@ Requires: chromium%{_isa} = %{version}-%{release}
 Qt6 UI for chromium.
 
 %prep
-%setup -q -n chromium-%{version}
+cd %{_sourcedir}
+./chromium-latest.py --prep --version=%{version} --cleansources --ffmpegclean
+cd -
+mv %{_sourcedir}/chromium-%{version} .
+
+%global buildsubdir chromium-%{version}
+cd chromium-%{version}
 
 ### Chromium Fedora Patches ###
 %patch -P1 -p1 -b .etc
