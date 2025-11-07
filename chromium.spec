@@ -36,13 +36,10 @@
 	ninja -j %{numjobs} -C '%1' '%2'
 
 # enable|disable chromedriver
-%global build_chromedriver 1
+%global build_chromedriver 0
 
 # enable|disable headless client build
-%global build_headless 1
-%ifarch ppc64le
 %global build_headless 0
-%endif
 
 # enable|disable chrome-remote-desktop build
 %global build_remoting 0
@@ -156,16 +153,6 @@
 # enable qt backend
 %global use_qt6 0
 %global use_qt 0
-
-%if 0%{?rhel} > 9 || 0%{?fedora} > 39
-%global use_qt6 1
-%global use_qt 1
-%else
-%if 0%{?rhel} == 8 || 0%{?rhel} == 9 || 0%{?fedora}
-%global use_qt6 0
-%global use_qt 1
-%endif
-%endif
 
 # bundle re2, jsoncpp, woff2 - build errors with use_custom_libcxx=true
 %global bundlere2 1
