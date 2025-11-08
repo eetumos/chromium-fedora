@@ -755,6 +755,8 @@ BuildRequires:	java-latest-openjdk-headless
 
 BuildRequires: libevdev-devel
 
+BuildRequires: vulkan-headers
+
 # There is a hardcoded check for nss 3.26 in the chromium code (crypto/nss_util.cc)
 Requires: nss%{_isa} >= 3.26
 Requires: nss-mdns%{_isa}
