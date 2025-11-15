@@ -984,8 +984,7 @@ mv %{_sourcedir}/chromium-%{version} .
 %global buildsubdir chromium-%{version}
 cd chromium-%{version}
 
-git clone --depth=1 --revision=$(grep -oP "OpenXR-SDK.*'\K[0-9a-z]+" DEPS) \
-    https://github.com/KhronosGroup/OpenXR-SDK third_party/openxr/src
+git clone --depth=1 https://github.com/KhronosGroup/OpenXR-SDK third_party/openxr/src
 
 ### Chromium Fedora Patches ###
 %patch -P1 -p1 -b .etc
