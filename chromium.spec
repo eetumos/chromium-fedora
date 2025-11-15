@@ -19,7 +19,7 @@
 %endif
  
 # official builds have less debugging and go faster... but we have to shut some things off.
-%global official_build 1
+%global official_build 0
 
 # enable|disble bootstrap
 %global bootstrap 0
@@ -109,18 +109,8 @@
 %global remotingbuilddir out/Remoting
 
 # enable|disable debuginfo
-%global enable_debug 0
-# disable debuginfo due to a bug in debugedit on el7
-# error: canonicalization unexpectedly shrank by one character
-# https://bugzilla.redhat.com/show_bug.cgi?id=304121
-%if ! %{enable_debug}
-%global debug_package %{nil}
-%global debug_level 0
-%else
-%global debug_level 1
-# workaround for the error empty file debugsource
+%global enable_debug 1
 %undefine _debugsource_packages
-%endif
 
 # %%{nil} for Stable; -beta for Beta; -dev for Devel
 # dash in -beta and -dev is intentional !
@@ -146,9 +136,6 @@
 
 # enable|disable control flow integrity support
 %global cfi 0
-%ifarch x86_64 aarch64
-%global cfi 1
-%endif
 
 # enable qt backend
 %global use_qt6 0
@@ -1250,7 +1237,7 @@ CHROMIUM_CORE_GN_DEFINES=""
 # using system toolchain
 CHROMIUM_CORE_GN_DEFINES+=' custom_toolchain="//build/toolchain/linux/unbundle:default"'
 CHROMIUM_CORE_GN_DEFINES+=' host_toolchain="//build/toolchain/linux/unbundle:default"'
-CHROMIUM_CORE_GN_DEFINES+=' is_debug=false dcheck_always_on=false dcheck_is_configurable=false'
+CHROMIUM_CORE_GN_DEFINES+=' is_debug=true is_component_build=false dcheck_always_on=true dcheck_is_configurable=false'
 CHROMIUM_CORE_GN_DEFINES+=' enable_nacl=false'
 CHROMIUM_CORE_GN_DEFINES+=' system_libdir="%{_lib}"'
 
@@ -1309,7 +1296,7 @@ CHROMIUM_CORE_GN_DEFINES+=' enable_vr=true'
 CHROMIUM_CORE_GN_DEFINES+=' enable_openxr=true'
 CHROMIUM_CORE_GN_DEFINES+=' build_dawn_tests=false enable_perfetto_unittests=false'
 CHROMIUM_CORE_GN_DEFINES+=' disable_fieldtrial_testing_config=true'
-CHROMIUM_CORE_GN_DEFINES+=' symbol_level=%{debug_level} blink_symbol_level=%{debug_level}'
+CHROMIUM_CORE_GN_DEFINES+=' symbol_level=2 blink_symbol_level=0 v8_symbol_level=0'
 CHROMIUM_CORE_GN_DEFINES+=' angle_has_histograms=false'
 # drop unrar
 CHROMIUM_CORE_GN_DEFINES+=' safe_browsing_use_unrar=false'
