@@ -1,0 +1,139 @@
+diff --git a/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc b/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc
+index 3d9e9e5507..4086698680 100644
+--- a/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc
++++ b/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc
+@@ -52,22 +52,33 @@ static base::NativeLibrary LoadNativeLibrary(std::string_view filePath) {
+ 
+ XrResult OpenXrGraphicsBindingVulkan::SetupBinding(XrInstance instance, XrSystemId system) {
+   static StaticLibrary libvulkan = LoadNativeLibrary("libvulkan.so.1");
++  LOG(WARNING) << "!!! loaded libvulkan.so.1";
+   gpu::VulkanFunctionPointers *const vulkan_function_pointers = gpu::GetVulkanFunctionPointers();
++  LOG(WARNING) << "!!! got vulkan function pointers";
+   vulkan_function_pointers->ResetForTesting();
+-  if (!vulkan_function_pointers->BindUnassociatedFunctionPointersFromLoaderLib(libvulkan))
++  LOG(WARNING) << "!!! reset vulkan function pointers";
++  if (!vulkan_function_pointers->BindUnassociatedFunctionPointersFromLoaderLib(libvulkan)) {
++    LOG(WARNING) << "!!! failed at BindUnassociatedFunctionPointersFromLoaderLib";
+     return XR_ERROR_RUNTIME_FAILURE;
++  }
++  LOG(WARNING) << "!!! called BindUnassociatedFunctionPointersFromLoaderLib";
+ 
+   PFN_xrGetVulkanGraphicsRequirements2KHR pfn_xrGetVulkanGraphicsRequirements2KHR = nullptr;
+   RETURN_IF_XR_FAILED(xrGetInstanceProcAddr(instance, "xrGetVulkanGraphicsRequirements2KHR", (PFN_xrVoidFunction*)(&pfn_xrGetVulkanGraphicsRequirements2KHR)));
++  LOG(WARNING) << "!!! got xrGetVulkanGraphicsRequirements2KHR";
+   PFN_xrCreateVulkanInstanceKHR pfn_xrCreateVulkanInstanceKHR = nullptr;
+   RETURN_IF_XR_FAILED(xrGetInstanceProcAddr(instance, "xrCreateVulkanInstanceKHR", (PFN_xrVoidFunction*)(&pfn_xrCreateVulkanInstanceKHR)));
++  LOG(WARNING) << "!!! got xrCreateVulkanInstanceKHR";
+   PFN_xrGetVulkanGraphicsDevice2KHR pfn_xrGetVulkanGraphicsDevice2KHR = nullptr;
+   RETURN_IF_XR_FAILED(xrGetInstanceProcAddr(instance, "xrGetVulkanGraphicsDevice2KHR", (PFN_xrVoidFunction*)(&pfn_xrGetVulkanGraphicsDevice2KHR)));
++  LOG(WARNING) << "!!! got xrGetVulkanGraphicsDevice2KHR";
+   PFN_xrCreateVulkanDeviceKHR pfn_xrCreateVulkanDeviceKHR = nullptr;
+   RETURN_IF_XR_FAILED(xrGetInstanceProcAddr(instance, "xrCreateVulkanDeviceKHR", (PFN_xrVoidFunction*)(&pfn_xrCreateVulkanDeviceKHR)));
++  LOG(WARNING) << "!!! got xrCreateVulkanDeviceKHR";
+ 
+   XrGraphicsRequirementsVulkan2KHR requirements = {XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN2_KHR};
+   RETURN_IF_XR_FAILED(pfn_xrGetVulkanGraphicsRequirements2KHR(instance, system, &requirements));
++  LOG(WARNING) << "!!! called pfn_xrGetVulkanGraphicsRequirements2KHR";
+   VkResult result;
+   RETURN_IF_XR_FAILED(pfn_xrCreateVulkanInstanceKHR(instance, (const XrVulkanInstanceCreateInfoKHR[1]){{
+     .type = XR_TYPE_VULKAN_INSTANCE_CREATE_INFO_KHR,
+@@ -86,7 +97,9 @@ XrResult OpenXrGraphicsBindingVulkan::SetupBinding(XrInstance instance, XrSystem
+       },*/
+     }},
+   }}, &binding_.instance, &result));
++  LOG(WARNING) << "!!! called pfn_xrCreateVulkanInstanceKHR";
+   RETURN_IF(result < VK_SUCCESS, XR_ERROR_RUNTIME_FAILURE, "xrCreateVulkanInstanceKHR() failed");
++  LOG(WARNING) << "!!! passed xrCreateVulkanInstanceKHR";
+ 
+   std::vector<const char*> extensions = {
+     VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
+@@ -98,15 +111,20 @@ XrResult OpenXrGraphicsBindingVulkan::SetupBinding(XrInstance instance, XrSystem
+   if (haveDrmFormatModifiers_) // TODO: set `haveDrmFormatModifiers_` if supported
+     extensions.push_back(VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME);
+   gfx::ExtensionSet extension_set(std::begin(extensions), std::end(extensions));
++  LOG(WARNING) << "!!! set extensions";
+ 
+-  if (!vulkan_function_pointers->BindInstanceFunctionPointers(binding_.instance, gpu::kVulkanRequiredApiVersion, extension_set))
++  if (!vulkan_function_pointers->BindInstanceFunctionPointers(binding_.instance, gpu::kVulkanRequiredApiVersion, extension_set)) {
++    LOG(WARNING) << "!!! failed to bind instance function pointers";
+     return XR_ERROR_RUNTIME_FAILURE;
++  }
++  LOG(WARNING) << "!!! bound instance function pointers";
+ 
+   RETURN_IF_XR_FAILED(pfn_xrGetVulkanGraphicsDevice2KHR(instance, (const XrVulkanGraphicsDeviceGetInfoKHR[1]){{
+     .type = XR_TYPE_VULKAN_GRAPHICS_DEVICE_GET_INFO_KHR,
+     .systemId = system,
+     .vulkanInstance = binding_.instance,
+   }}, &binding_.physicalDevice));
++  LOG(WARNING) << "!!! called pfn_xrGetVulkanGraphicsDevice2KHR";
+ 
+   const float queuePriority = 0;
+   VkDeviceQueueCreateInfo queueInfo = {
+@@ -116,8 +134,11 @@ XrResult OpenXrGraphicsBindingVulkan::SetupBinding(XrInstance instance, XrSystem
+   };
+   uint32_t queueFamilyCount = 0;
+   vkGetPhysicalDeviceQueueFamilyProperties(binding_.physicalDevice, &queueFamilyCount, nullptr);
++  LOG(WARNING) << "!!! called vkGetPhysicalDeviceQueueFamilyProperties";
+   std::vector<VkQueueFamilyProperties> queueFamilyProps(queueFamilyCount);
++  LOG(WARNING) << "!!! called queueFamilyProps";
+   vkGetPhysicalDeviceQueueFamilyProperties(binding_.physicalDevice, &queueFamilyCount, &queueFamilyProps[0]);
++  LOG(WARNING) << "!!! called vkGetPhysicalDeviceQueueFamilyProperties";
+ 
+   for (uint32_t i = 0; i < queueFamilyCount; ++i) {
+     if (queueFamilyProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+@@ -126,6 +147,7 @@ XrResult OpenXrGraphicsBindingVulkan::SetupBinding(XrInstance instance, XrSystem
+     }
+   }
+   queueInfo.queueFamilyIndex = binding_.queueFamilyIndex;
++  LOG(WARNING) << "!!! set queueFamilyIndex";
+ 
+   RETURN_IF_XR_FAILED(pfn_xrCreateVulkanDeviceKHR(instance, (const XrVulkanDeviceCreateInfoKHR[1]){{
+     .type = XR_TYPE_VULKAN_DEVICE_CREATE_INFO_KHR,
+@@ -141,15 +163,22 @@ XrResult OpenXrGraphicsBindingVulkan::SetupBinding(XrInstance instance, XrSystem
+       .pEnabledFeatures = (const VkPhysicalDeviceFeatures[1]){},
+     }},
+   }}, &binding_.device, &result));
++  LOG(WARNING) << "!!! called pfn_xrCreateVulkanDeviceKHR";
+   RETURN_IF(result < VK_SUCCESS, XR_ERROR_RUNTIME_FAILURE, "xrCreateVulkanDeviceKHR() failed");
+-  if (!vulkan_function_pointers->BindDeviceFunctionPointers(binding_.device, gpu::kVulkanRequiredApiVersion, extension_set))
++  LOG(WARNING) << "!!! passed pfn_xrCreateVulkanDeviceKHR";
++  if (!vulkan_function_pointers->BindDeviceFunctionPointers(binding_.device, gpu::kVulkanRequiredApiVersion, extension_set)) {
++    LOG(WARNING) << "!!! failed at BindDeviceFunctionPointers";
+     return XR_ERROR_RUNTIME_FAILURE;
++  }
++  LOG(WARNING) << "!!! bound device function pointers";
+   pfn_vkCmdCopyImage_ = reinterpret_cast<PFN_vkCmdCopyImage>(vkGetDeviceProcAddr(binding_.device, "vkCmdCopyImage"));
++  LOG(WARNING) << "!!! got vkCmdCopyImage";
+   if (!pfn_vkCmdCopyImage_) {
+     DLOG(WARNING) << "Failed to bind vulkan entrypoint: vkCmdCopyImage";
+     return XR_ERROR_RUNTIME_FAILURE;
+   }
+   pfn_vkCmdClearColorImage_ = reinterpret_cast<PFN_vkCmdClearColorImage>(vkGetDeviceProcAddr(binding_.device, "vkCmdClearColorImage"));
++  LOG(WARNING) << "!!! got vkCmdClearColorImage";
+   if (!pfn_vkCmdClearColorImage_) {
+     DLOG(WARNING) << "Failed to bind vulkan entrypoint: vkCmdClearColorImage";
+     return XR_ERROR_RUNTIME_FAILURE;
+@@ -158,13 +187,21 @@ XrResult OpenXrGraphicsBindingVulkan::SetupBinding(XrInstance instance, XrSystem
+   binding_.queueIndex = 0;
+   VkQueue queue = VK_NULL_HANDLE;
+   vkGetDeviceQueue(binding_.device, binding_.queueFamilyIndex, binding_.queueIndex, &queue);
++  LOG(WARNING) << "!!! called vkGetDeviceQueue";
+   copyQueue_ = std::make_unique<gpu::VulkanDeviceQueue>(binding_.instance);
+-  if (!copyQueue_->InitializeForWebView(binding_.physicalDevice, binding_.device, queue, binding_.queueFamilyIndex, std::move(extension_set)))
++  if (!copyQueue_->InitializeForWebView(binding_.physicalDevice, binding_.device, queue, binding_.queueFamilyIndex, std::move(extension_set))) {
++    LOG(WARNING) << "!!! failed at InitializeForWebView";
+     return XR_ERROR_RUNTIME_FAILURE;
++  }
++  LOG(WARNING) << "!!! called InitializeForWebView";
+   commandPool_ = std::make_unique<gpu::VulkanCommandPool>(copyQueue_.get());
+-  if (!commandPool_->Initialize()) // vkCreateCommandPool
++  if (!commandPool_->Initialize()) {
++    LOG(WARNING) << "!!! failed at Initialize";
+     return XR_ERROR_RUNTIME_FAILURE;
++  }
++  LOG(WARNING) << "!!! called Initialize";
+   commandBuffer_ = commandPool_->CreatePrimaryCommandBuffer(); // vkAllocateCommandBuffers
++  LOG(WARNING) << "!!! called CreatePrimaryCommandBuffer";
+   if (!commandBuffer_)
+     return XR_ERROR_RUNTIME_FAILURE;
+   return XR_SUCCESS;

@@ -421,6 +421,7 @@ Patch900: perfetto-clang-20.patch
 Patch901: webrtc-pipewire.patch
 Patch902: webxr-linux-vulkan.patch
 Patch903: webxr-linux-vulkan-deps.patch
+Patch904: webxr-linux-vulkan-log.patch
 
 # upstream patches
 
@@ -1122,6 +1123,7 @@ git clone --depth=1 --revision=$(grep -oP "OpenXR-SDK.*'\K[0-9a-z]+" DEPS) \
 %patch -P901 -p1 -dthird_party/webrtc
 %patch -P902 -p1
 %patch -P903 -p1
+%patch -P904 -p1
 
 # Change shebang in all relevant files in this directory and all subdirectories
 # See `man find` for how the `-exec command {} +` syntax works
