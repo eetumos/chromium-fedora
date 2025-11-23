@@ -436,7 +436,6 @@ Patch511: 0002-Fix-Missing-OPENSSL_NO_ENGINE-Guard.patch
 # For Chromium Fedora use chromium-latest.py --stable --ffmpegclean --ffmpegarm
 # If you want to include the ffmpeg arm sources append the --ffmpegarm switch
 # https://commondatastorage.googleapis.com/chromium-browser-official/chromium-%%{version}.tar.xz
-Source0: chromium-%{version}-clean.tar.xz
 Source1: README.fedora
 Source2: chromium.conf
 Source3: chromium-browser.sh
@@ -462,6 +461,8 @@ Source12: node-%{nodejs_version}-stripped.tar.gz
 Source13: nodejs-sources.sh
 BuildRequires: openssl-devel
 %endif
+
+Source14: ffmpeg-clean.patch
 
 BuildRequires: clang
 BuildRequires: clang-tools-extra
@@ -936,7 +937,13 @@ Requires: chromium%{_isa} = %{version}-%{release}
 Qt6 UI for chromium.
 
 %prep
-%setup -q -n chromium-%{version}
+cd %{_sourcedir}
+./chromium-latest.py --prep --version=%{version} --cleansources --ffmpegclean
+cd -
+mv %{_sourcedir}/chromium-%{version} .
+
+%global buildsubdir chromium-%{version}
+cd chromium-%{version}
 
 ### Chromium Fedora Patches ###
 %patch -P1 -p1 -b .etc
