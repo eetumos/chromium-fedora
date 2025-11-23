@@ -24,16 +24,10 @@
 	ninja -j %{numjobs} -C '%1' '%2'
 
 # enable|disable chromedriver
-%global build_chromedriver 1
-%if 0%{?flatpak}
 %global build_chromedriver 0
-%endif
 
 # enable|disable headless client build
-%global build_headless 1
-%if 0%{?flatpak}
 %global build_headless 0
-%endif
 
 # set nodejs_version
 %global nodejs_version v22.14.0
@@ -130,7 +124,7 @@
 %endif
 
 # enable qt backend
-%global enable_qt 1
+%global enable_qt 0
 %if %{enable_qt}
 %if 0%{?rhel} > 9 || 0%{?fedora} > 39
 %global use_qt6 1
