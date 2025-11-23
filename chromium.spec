@@ -238,7 +238,7 @@
 %endif
 
 Name:	chromium
-Version: 140.0.7339.80
+Version: 140.0.7301.0
 Release: 1%{?dist}
 Summary: A WebKit (Blink) powered web browser that Google doesn't want you to use
 Url: http://www.chromium.org/Home
@@ -424,6 +424,7 @@ Patch511: 0002-Fix-Missing-OPENSSL_NO_ENGINE-Guard.patch
 %endif
 
 Patch900: __rust_alloc_error_handler_should_panic_v2.patch
+Patch901: system-harfbuzz.patch
 
 # upstream patches
 
@@ -1081,6 +1082,7 @@ cd chromium-%{version}
 %endif
 
 %patch -P900 -p1
+%patch -P901 -p1
 
 # Upstream patches
 
