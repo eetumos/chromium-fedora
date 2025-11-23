@@ -1,0 +1,47 @@
+diff --git a/device/vr/BUILD.gn b/device/vr/BUILD.gn
+index 8c766c0fc9..17f666582b 100644
+--- a/device/vr/BUILD.gn
++++ b/device/vr/BUILD.gn
+@@ -360,25 +360,25 @@ if (enable_vr) {
+ }
+ 
+ if (enable_openxr) {
+-  # The OpenXR Loader by default looks for the path to the OpenXR Runtime from a
+-  # registry key, which typically points to the OpenXR runtime installed on the
+-  # system. In test, we want to use the mock OpenXR runtime that is created
+-  # below in :openxr_mock. If the XR_RUNTIME_JSON environment variable is set,
+-  # the OpenXR loader instead looks for the path to the OpenXR runtime in the
+-  # json file instead of the registry key. This json file copied to the output
+-  # folder points to our mock OpenXR runtime.
+-  copy("json_mock") {
+-    sources = []
+-    if (is_win) {
+-      sources += [ "openxr/test/openxr_win.json" ]
+-    } else if (is_android) {
+-      sources += [ "openxr/test/openxr_android.json" ]
+-    }
++  if (is_win || is_android) {
++    # The OpenXR Loader by default looks for the path to the OpenXR Runtime from a
++    # registry key, which typically points to the OpenXR runtime installed on the
++    # system. In test, we want to use the mock OpenXR runtime that is created
++    # below in :openxr_mock. If the XR_RUNTIME_JSON environment variable is set,
++    # the OpenXR loader instead looks for the path to the OpenXR runtime in the
++    # json file instead of the registry key. This json file copied to the output
++    # folder points to our mock OpenXR runtime.
++    copy("json_mock") {
++      sources = []
++      if (is_win) {
++        sources += [ "openxr/test/openxr_win.json" ]
++      } else if (is_android) {
++        sources += [ "openxr/test/openxr_android.json" ]
++      }
+ 
+-    outputs = [ "$root_out_dir/mock_vr_clients/bin/openxr/openxr.json" ]
+-  }
++      outputs = [ "$root_out_dir/mock_vr_clients/bin/openxr/openxr.json" ]
++    }
+ 
+-  if (is_win || is_android) {
+     shared_library("openxr_mock") {
+       testonly = true
+ 

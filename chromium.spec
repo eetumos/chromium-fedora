@@ -425,6 +425,9 @@ Patch511: 0002-Fix-Missing-OPENSSL_NO_ENGINE-Guard.patch
 
 Patch900: __rust_alloc_error_handler_should_panic_v2.patch
 Patch901: system-harfbuzz.patch
+Patch902: webxr-linux-vulkan.patch
+Patch903: webxr-linux-vulkan-deps.patch
+Patch904: webxr-linux-vulkan-mock.patch
 
 # upstream patches
 
@@ -942,6 +945,9 @@ mv %{_sourcedir}/chromium-%{version} .
 %global buildsubdir chromium-%{version}
 cd chromium-%{version}
 
+git clone --depth=1 --revision=$(grep -oP "OpenXR-SDK.*'\K[0-9a-z]+" DEPS) \
+    https://github.com/KhronosGroup/OpenXR-SDK third_party/openxr/src
+
 ### Chromium Fedora Patches ###
 %patch -P1 -p1 -b .etc
 %patch -P8 -p1 -b .widevine-other-locations
@@ -1083,6 +1089,9 @@ cd chromium-%{version}
 
 %patch -P900 -p1
 %patch -P901 -p1
+%patch -P902 -p1
+%patch -P903 -p1
+%patch -P904 -p1
 
 # Upstream patches
 
@@ -1246,7 +1255,8 @@ CHROMIUM_CORE_GN_DEFINES+=' target_os="linux"'
 CHROMIUM_CORE_GN_DEFINES+=' current_os="linux"'
 CHROMIUM_CORE_GN_DEFINES+=' treat_warnings_as_errors=false'
 CHROMIUM_CORE_GN_DEFINES+=' enable_iterator_debugging=false'
-CHROMIUM_CORE_GN_DEFINES+=' enable_vr=false'
+CHROMIUM_CORE_GN_DEFINES+=' enable_vr=true'
+CHROMIUM_CORE_GN_DEFINES+=' enable_openxr=true'
 CHROMIUM_CORE_GN_DEFINES+=' build_dawn_tests=false enable_perfetto_unittests=false'
 CHROMIUM_CORE_GN_DEFINES+=' disable_fieldtrial_testing_config=true'
 CHROMIUM_CORE_GN_DEFINES+=' symbol_level=%{debug_level} blink_symbol_level=%{debug_level}'
