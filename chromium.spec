@@ -429,6 +429,8 @@ Patch510: 0001-Remove-unused-OpenSSL-config.patch
 Patch511: 0002-Fix-Missing-OPENSSL_NO_ENGINE-Guard.patch
 %endif
 
+Patch900: __rust_alloc_error_handler_should_panic_v2.patch
+
 # upstream patches
 
 # Use chromium-latest.py to generate clean tarball from released build tarballs, found here:
@@ -473,7 +475,7 @@ BuildRequires: lld
 BuildRequires: gcc-toolset-14-libatomic-devel
 %endif
 
-BuildRequires: rustc
+BuildRequires: rustc = 1.90.0
 BuildRequires: bindgen-cli
 
 %if ! %{bundlezstd}
@@ -1083,6 +1085,8 @@ cd chromium-%{version}
 %patch -P501 -p1 -b .flatpak-sandbox-paths
 %patch -P502 -p1 -b .flatpak-widevine
 %endif
+
+%patch -P900 -p1
 
 # Upstream patches
 
