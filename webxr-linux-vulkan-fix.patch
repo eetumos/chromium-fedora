@@ -1,0 +1,147 @@
+diff --git a/chrome/browser/vr/graphics_delegate_linux.cc b/chrome/browser/vr/graphics_delegate_linux.cc
+index 91b03c347d..03dbb84584 100644
+--- a/chrome/browser/vr/graphics_delegate_linux.cc
++++ b/chrome/browser/vr/graphics_delegate_linux.cc
+@@ -17,10 +17,10 @@ void GraphicsDelegateLinux::Initialize(base::OnceClosure on_initialized) {
+   attributes.bind_generates_resource = false;
+   context_provider_ = base::MakeRefCounted<viz::ContextProviderCommandBuffer>(
+       gpu_channel_host_, content::kGpuStreamIdDefault,
+-      content::kGpuStreamPriorityUI, gpu::kNullSurfaceHandle,
+-      GURL(std::string("chrome://gpu/VrUiLinux")), false /* automatic flushes */,
+-      false /* support locking */, gpu::SharedMemoryLimits::ForMailboxContext(),
+-      attributes, viz::command_buffer_metrics::ContextType::XR_COMPOSITING);
++      content::kGpuStreamPriorityUI, GURL(std::string("chrome://gpu/VrUiLinux")),
++      false /* automatic flushes */, false /* support locking */,
++      gpu::SharedMemoryLimits::ForMailboxContext(), attributes,
++      viz::command_buffer_metrics::ContextType::XR_COMPOSITING);
+   if (context_provider_->BindToCurrentSequence() ==
+       gpu::ContextResult::kSuccess) {
+     gl_ = context_provider_->ContextGL();
+diff --git a/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc b/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc
+index 3d9e9e5507..45915d5005 100644
+--- a/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc
++++ b/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc
+@@ -10,15 +10,13 @@
+ 
+ namespace device {
+ 
+-namespace {
+-  [[maybe_unused]] int next_memory_buffer_id = 0;
+-}
+-
+ void OpenXrGraphicsBinding::GetRequiredExtensions(std::vector<const char*>& extensions) {
+   extensions.push_back(XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME);
+ }
+ 
+-OpenXrGraphicsBindingVulkan::OpenXrGraphicsBindingVulkan() = default;
++OpenXrGraphicsBindingVulkan::OpenXrGraphicsBindingVulkan(
++    const OpenXrExtensionEnumeration* extension_enum)
++    : OpenXrGraphicsBinding(extension_enum) {}
+ OpenXrGraphicsBindingVulkan::~OpenXrGraphicsBindingVulkan() {
+   if (initialized_)
+     vkDeviceWaitIdle(binding_.device);
+@@ -232,6 +230,10 @@ base::span<SwapChainInfo> OpenXrGraphicsBindingVulkan::GetSwapChainImages() {
+   return color_swapchain_images_;
+ }
+ 
++base::span<const SwapChainInfo> OpenXrGraphicsBindingVulkan::GetSwapChainImages() const {
++  return color_swapchain_images_;
++}
++
+ bool OpenXrGraphicsBindingVulkan::CanUseSharedImages() const {
+   return true;
+ }
+@@ -285,11 +287,10 @@ void OpenXrGraphicsBindingVulkan::ResizeSharedBuffer(SwapChainInfo& swap_chain_i
+     }
+   }
+ 
+-  gfx::GpuMemoryBufferHandle handle = {};
+-  handle.id = gfx::GpuMemoryBufferId(next_memory_buffer_id++);
+-  handle.type = gfx::GpuMemoryBufferType::NATIVE_PIXMAP;
+-  handle.native_pixmap_handle.planes.emplace_back(0, 0, backingImage->device_size(), std::move(fd));
+-  handle.native_pixmap_handle.modifier = modifier_props.drmFormatModifier;
++  gfx::NativePixmapHandle native_pixmap_handle;
++  native_pixmap_handle.planes.emplace_back(0, 0, backingImage->device_size(), std::move(fd));
++  native_pixmap_handle.modifier = modifier_props.drmFormatModifier;
++  gfx::GpuMemoryBufferHandle handle(std::move(native_pixmap_handle));
+ 
+   swap_chain_info.shared_image = sii->CreateSharedImage({
+     viz::SinglePlaneFormat::kBGRA_8888,
+@@ -324,7 +325,7 @@ bool OpenXrGraphicsBindingVulkan::WaitOnFence(gfx::GpuFence& gpu_fence) {
+   return false;
+ }
+ 
+-bool OpenXrGraphicsBindingVulkan::ShouldFlipSubmittedImage() {
++bool OpenXrGraphicsBindingVulkan::ShouldFlipSubmittedImage() const {
+   return true;
+ }
+ 
+diff --git a/device/vr/openxr/linux/openxr_graphics_binding_vulkan.h b/device/vr/openxr/linux/openxr_graphics_binding_vulkan.h
+index 02c83c39e1..6fd682d781 100644
+--- a/device/vr/openxr/linux/openxr_graphics_binding_vulkan.h
++++ b/device/vr/openxr/linux/openxr_graphics_binding_vulkan.h
+@@ -15,7 +15,8 @@ namespace device {
+ 
+ class DEVICE_VR_EXPORT OpenXrGraphicsBindingVulkan : public OpenXrGraphicsBinding {
+  public:
+-  OpenXrGraphicsBindingVulkan();
++  explicit OpenXrGraphicsBindingVulkan(
++      const OpenXrExtensionEnumeration* extension_enum);
+   ~OpenXrGraphicsBindingVulkan() override;
+ 
+   bool Initialize(XrInstance instance, XrSystemId system) override;
+@@ -25,12 +26,13 @@ class DEVICE_VR_EXPORT OpenXrGraphicsBindingVulkan : public OpenXrGraphicsBindin
+       const XrSwapchain& color_swapchain) override;
+   void ClearSwapchainImages() override;
+   base::span<SwapChainInfo> GetSwapChainImages() override;
++  base::span<const SwapChainInfo> GetSwapChainImages() const override;
+   bool CanUseSharedImages() const override;
+   void CreateSharedImages(gpu::SharedImageInterface* sii) override;
+   const SwapChainInfo& GetActiveSwapchainImage() override;
+   void CleanupWithoutSubmit() override;
+   bool WaitOnFence(gfx::GpuFence& gpu_fence) override;
+-  bool ShouldFlipSubmittedImage() override;
++  bool ShouldFlipSubmittedImage() const override;
+   void SetOverlayAndWebXrVisibility(bool overlay_visible, bool webxr_visible) override;
+   bool SetOverlayTexture(gfx::GpuMemoryBufferHandle texture, const gpu::SyncToken& sync_token, const gfx::RectF& left, const gfx::RectF& right) override;
+   bool Render(const scoped_refptr<viz::ContextProvider>& context_provider) override;
+diff --git a/device/vr/openxr/linux/openxr_platform_helper_linux.cc b/device/vr/openxr/linux/openxr_platform_helper_linux.cc
+index fb3e287dc9..5fdb9918ae 100644
+--- a/device/vr/openxr/linux/openxr_platform_helper_linux.cc
++++ b/device/vr/openxr/linux/openxr_platform_helper_linux.cc
+@@ -12,7 +12,8 @@ OpenXrPlatformHelperLinux::OpenXrPlatformHelperLinux() {}
+ OpenXrPlatformHelperLinux::~OpenXrPlatformHelperLinux() = default;
+ 
+ std::unique_ptr<OpenXrGraphicsBinding> OpenXrPlatformHelperLinux::GetGraphicsBinding() {
+-  return std::make_unique<OpenXrGraphicsBindingVulkan>();
++  return std::make_unique<OpenXrGraphicsBindingVulkan>(
++      GetExtensionEnumeration());
+ }
+ 
+ void OpenXrPlatformHelperLinux::GetPlatformCreateInfo(const device::OpenXrCreateInfo& create_info, PlatformCreateInfoReadyCallback callback, PlatormInitiatedShutdownCallback) {
+@@ -41,6 +42,11 @@ bool OpenXrPlatformHelperLinux::Initialize() {
+   return true;
+ }
+ 
++void OpenXrPlatformHelperLinux::PrepareForSessionShutdown(
++    base::OnceClosure shutdown_ready_callback) {
++  std::move(shutdown_ready_callback).Run();
++}
++
+ XrInstance OpenXrPlatformHelperLinux::GetOrCreateXrInstance() {
+   XrInstance instance = XR_NULL_HANDLE;
+   (void)CreateInstance(&instance, nullptr);
+diff --git a/device/vr/openxr/linux/openxr_platform_helper_linux.h b/device/vr/openxr/linux/openxr_platform_helper_linux.h
+index 17e060c896..9cdd9dff0b 100644
+--- a/device/vr/openxr/linux/openxr_platform_helper_linux.h
++++ b/device/vr/openxr/linux/openxr_platform_helper_linux.h
+@@ -14,6 +14,9 @@ class DEVICE_VR_EXPORT OpenXrPlatformHelperLinux : public OpenXrPlatformHelper {
+   device::mojom::XRDeviceData GetXRDeviceData() override;
+   bool Initialize() override;
+ 
++  void PrepareForSessionShutdown(
++      base::OnceClosure shutdown_ready_callback) override;
++
+   XrResult CreateInstance(XrInstance* instance, void* create_info) override;
+   XrResult DestroyInstance(XrInstance& instance) override;
+ 
