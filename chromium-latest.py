@@ -324,7 +324,6 @@ if __name__ == '__main__':
                  'third_party/node/linux/node-linux-x64',
                  'third_party/rust-toolchain',
                  'third_party/rust-src',
-                 'third_party/devtools-frontend/src/third_party/esbuild',
                  'third_party/enterprise_companion/chromium_linux64',
                  'third_party/enterprise_companion/chromium_mac_amd64',
                  'third_party/enterprise_companion/chromium_mac_arm64',
