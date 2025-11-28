@@ -430,6 +430,7 @@ Patch902: webxr-linux-vulkan.patch
 Patch903: webxr-linux-vulkan-deps.patch
 Patch904: webxr-linux-vulkan-mock.patch
 Patch905: webxr-linux-vulkan-fix.patch
+Patch906: gbm-without-modifier.patch
 
 # upstream patches
 
@@ -1095,6 +1096,7 @@ git clone --depth=1 --revision=$(grep -oP "OpenXR-SDK.*'\K[0-9a-z]+" DEPS) \
 %patch -P903 -p1
 %patch -P904 -p1
 %patch -P905 -p1
+%patch -P906 -p1
 
 # Upstream patches
 
