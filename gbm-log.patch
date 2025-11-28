@@ -1,0 +1,29 @@
+diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
+index e46fbaca92..39a313e686 100644
+--- a/ui/gfx/linux/gbm_wrapper.cc
++++ b/ui/gfx/linux/gbm_wrapper.cc
+@@ -423,10 +423,24 @@ class Device final : public ui::GbmDevice {
+       fd_data.offsets[i] = handle.planes[i].offset;
+     }
+ 
++    LOG(ERROR) << "!!! gbm_bo_import fd_data.width "    << fd_data.width;
++    LOG(ERROR) << "!!! gbm_bo_import fd_data.height "   << fd_data.height;
++    LOG(ERROR) << "!!! gbm_bo_import fd_data.format "   << fd_data.format;
++    LOG(ERROR) << "!!! gbm_bo_import fd_data.num_fds "  << fd_data.num_fds;
++    LOG(ERROR) << "!!! gbm_bo_import fd_data.modifier " << fd_data.modifier;
++    for (size_t i = 0; i < handle.planes.size(); ++i) {
++      LOG(ERROR) << "!!! gbm_bo_import i "      << i;
++      LOG(ERROR) << "!!! gbm_bo_import fd "     << fd_data.fds[i];
++      LOG(ERROR) << "!!! gbm_bo_import stride " << fd_data.strides[i];
++      LOG(ERROR) << "!!! gbm_bo_import offset " << fd_data.offsets[i];
++    }
++    LOG(ERROR) << "!!! gbm_bo_import gbm_flags " << gbm_flags;
++
+     // The fd passed to gbm_bo_import is not ref-counted and need to be
+     // kept open for the lifetime of the buffer.
+     struct gbm_bo* bo = gbm_bo_import(device_.get(), GBM_BO_IMPORT_FD_MODIFIER,
+                                       &fd_data, gbm_flags);
++
+     if (!bo) {
+       if (gbm_flags & GBM_BO_USE_SCANOUT) {
+         gbm_flags &= ~GBM_BO_USE_SCANOUT;
