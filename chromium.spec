@@ -1110,7 +1110,7 @@ find -type f \( -iname "*.py" \) -exec sed -i '1s=^#! */usr/bin/\(python\|env py
 %endif
 
 # Get rid of the prebuilt esbuild binary
-rm -rf third_party/devtools-frontend/src/third_party/esbuild
+#rm -rf third_party/devtools-frontend/src/third_party/esbuild
 
 # Remove bundle gn and replace it with a system gn or bootstrap gn as it is x86_64 and causes
 # FTBFS on other arch like aarch64/ppc64le
