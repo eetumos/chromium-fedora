@@ -7,7 +7,7 @@
 %global numjobs %{_smp_build_ncpus}
 
 # official builds have less debugging and go faster... but we have to shut some things off.
-%global official_build 1
+%global official_build 0
 
 # enable|disble bootstrap
 %global bootstrap 0
@@ -89,7 +89,7 @@
 %global remotingbuilddir out/Remoting
 
 # enable|disable debuginfo
-%global enable_debug 0
+%global enable_debug 1
 # disable debuginfo due to a bug in debugedit on el7
 # error: canonicalization unexpectedly shrank by one character
 # https://bugzilla.redhat.com/show_bug.cgi?id=304121
@@ -97,7 +97,7 @@
 %global debug_package %{nil}
 %global debug_level 0
 %else
-%global debug_level 1
+%global debug_level 2
 # workaround for the error empty file debugsource
 %undefine _debugsource_packages
 %endif
@@ -1207,7 +1207,7 @@ CHROMIUM_CORE_GN_DEFINES=""
 # using system toolchain
 CHROMIUM_CORE_GN_DEFINES+=' custom_toolchain="//build/toolchain/linux/unbundle:default"'
 CHROMIUM_CORE_GN_DEFINES+=' host_toolchain="//build/toolchain/linux/unbundle:default"'
-CHROMIUM_CORE_GN_DEFINES+=' is_debug=false dcheck_always_on=false dcheck_is_configurable=false'
+CHROMIUM_CORE_GN_DEFINES+=' is_debug=true is_component_build=false dcheck_always_on=false dcheck_is_configurable=false'
 CHROMIUM_CORE_GN_DEFINES+=' enable_enterprise_companion=false'
 CHROMIUM_CORE_GN_DEFINES+=' system_libdir="%{_lib}"'
 
