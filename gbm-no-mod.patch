@@ -1,0 +1,38 @@
+diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
+index 39a313e686..8a9cc5c616 100644
+--- a/ui/gfx/linux/gbm_wrapper.cc
++++ b/ui/gfx/linux/gbm_wrapper.cc
+@@ -448,6 +448,33 @@ class Device final : public ui::GbmDevice {
+                            gbm_flags);
+       }
+ 
++      if (!bo) {
++        LOG(ERROR) << "!!! testing GBM_BO_IMPORT_FD";
++        struct gbm_import_fd_data new_fd_data;
++        new_fd_data.fd = fd_data.fds[0];
++        new_fd_data.width = fd_data.width;
++        new_fd_data.height = fd_data.height;
++        new_fd_data.stride = fd_data.strides[0];
++        new_fd_data.format = fd_data.format;
++
++        bo = gbm_bo_import(device_.get(), GBM_BO_IMPORT_FD, &new_fd_data,
++                           gbm_flags);
++      }
++
++      if (!bo) {
++        LOG(ERROR) << "!!! testing GBM_BO_IMPORT_FD and scanout fix";
++        gbm_flags &= ~GBM_BO_USE_SCANOUT;
++        struct gbm_import_fd_data new_fd_data;
++        new_fd_data.fd = fd_data.fds[0];
++        new_fd_data.width = fd_data.width;
++        new_fd_data.height = fd_data.height;
++        new_fd_data.stride = fd_data.strides[0];
++        new_fd_data.format = fd_data.format;
++
++        bo = gbm_bo_import(device_.get(), GBM_BO_IMPORT_FD, &new_fd_data,
++                           gbm_flags);
++      }
++
+       if (!bo) {
+         LOG(ERROR) << "nullptr returned from gbm_bo_import";
+         return nullptr;
