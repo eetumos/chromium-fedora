@@ -1,5 +1,6 @@
 %define _lto_cflags %{nil}
 %global _default_patch_fuzz 2
+%global _unpackaged_files_terminate_build 0
 
 # enable|disable system build flags
 %global system_build_flags 0
