@@ -1,0 +1,29 @@
+diff --git a/ui/ozone/common/native_pixmap_egl_binding.cc b/ui/ozone/common/native_pixmap_egl_binding.cc
+index a06914f08c..1be71daea2 100644
+--- a/ui/ozone/common/native_pixmap_egl_binding.cc
++++ b/ui/ozone/common/native_pixmap_egl_binding.cc
+@@ -142,6 +142,9 @@ bool NativePixmapEGLBinding::InitializeFromNativePixmap(
+   attrs.push_back(size_.height());
+   attrs.push_back(EGL_LINUX_DRM_FOURCC_EXT);
+   attrs.push_back(FourCC(format_));
++  LOG(ERROR) << "!!! width "   << size_.width();
++  LOG(ERROR) << "!!! height "  << size_.height();
++  LOG(ERROR) << "!!! fourcc "  << FourCC(format_);
+ 
+   if (format_ == gfx::BufferFormat::YUV_420_BIPLANAR ||
+       format_ == gfx::BufferFormat::YVU_420 ||
+@@ -227,10 +230,14 @@ bool NativePixmapEGLBinding::InitializeFromNativePixmap(
+       attrs.push_back(pixmap->GetDmaBufOffset(attrs_plane));
+       attrs.push_back(kPlanePitchAttrs[attrs_plane]);
+       attrs.push_back(pixmap->GetDmaBufPitch(attrs_plane));
++      LOG(ERROR) << "!!! plane "  << attrs_plane;
++      LOG(ERROR) << "!!! offset " << pixmap->GetDmaBufOffset(attrs_plane);
++      LOG(ERROR) << "!!! pitch "  << pixmap->GetDmaBufPitch(attrs_plane);
+ 
+       uint64_t modifier = pixmap->GetBufferFormatModifier();
+       if (has_dma_buf_import_modifier &&
+           modifier != gfx::NativePixmapHandle::kNoModifier) {
++        LOG(ERROR) << "!!! modifier "  << modifier;
+         DCHECK(attrs_plane < std::size(kPlaneLoModifierAttrs));
+         DCHECK(attrs_plane < std::size(kPlaneHiModifierAttrs));
+         attrs.push_back(kPlaneLoModifierAttrs[attrs_plane]);
