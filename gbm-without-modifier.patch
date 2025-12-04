@@ -1,8 +1,18 @@
 diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
-index e46fbaca92..3f0d29cc80 100644
+index e46fbaca92..5ea82a657f 100644
 --- a/ui/gfx/linux/gbm_wrapper.cc
 +++ b/ui/gfx/linux/gbm_wrapper.cc
-@@ -429,11 +429,36 @@ class Device final : public ui::GbmDevice {
+@@ -421,6 +421,9 @@ class Device final : public ui::GbmDevice {
+       fd_data.fds[i] = handle.planes[i < handle.planes.size() ? i : 0].fd.get();
+       fd_data.strides[i] = handle.planes[i].stride;
+       fd_data.offsets[i] = handle.planes[i].offset;
++      LOG(ERROR) << "!!! gbm_bo_import i " << i;
++      LOG(ERROR) << "!!! gbm_bo_import stride " << handle.planes[i].stride;
++      LOG(ERROR) << "!!! gbm_bo_import offset " << handle.planes[i].offset;
+     }
+ 
+     // The fd passed to gbm_bo_import is not ref-counted and need to be
+@@ -429,11 +432,36 @@ class Device final : public ui::GbmDevice {
                                        &fd_data, gbm_flags);
      if (!bo) {
        if (gbm_flags & GBM_BO_USE_SCANOUT) {
