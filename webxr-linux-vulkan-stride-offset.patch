@@ -1,0 +1,46 @@
+diff --git a/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc b/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc
+index 45915d5005..bce9c20285 100644
+--- a/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc
++++ b/device/vr/openxr/linux/openxr_graphics_binding_vulkan.cc
+@@ -239,6 +239,7 @@ bool OpenXrGraphicsBindingVulkan::CanUseSharedImages() const {
+ }
+ 
+ void OpenXrGraphicsBindingVulkan::ResizeSharedBuffer(SwapChainInfo& swap_chain_info, gpu::SharedImageInterface* sii) {
++  LOG(ERROR) << "!!! calling OpenXrGraphicsBindingVulkan::ResizeSharedBuffer";
+   CHECK(sii);
+   auto transfer_size = GetTransferSize();
+   if (swap_chain_info.shared_buffer_size == transfer_size)
+@@ -263,7 +264,7 @@ void OpenXrGraphicsBindingVulkan::ResizeSharedBuffer(SwapChainInfo& swap_chain_i
+     .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
+   };
+   std::unique_ptr<gpu::VulkanImage> backingImage = gpu::VulkanImage::Create(copyQueue_.get(), transfer_size, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, 0,
+-    haveDrmFormatModifiers_ ? VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT : VK_IMAGE_TILING_OPTIMAL, &extra_image_create_info, &extra_memory_allocation_info);
++    haveDrmFormatModifiers_ ? VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT : VK_IMAGE_TILING_LINEAR, &extra_image_create_info, &extra_memory_allocation_info);
+ 
+   base::ScopedFD fd = backingImage->GetMemoryFd(VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
+   if (!fd.is_valid()) {
+@@ -287,8 +288,15 @@ void OpenXrGraphicsBindingVulkan::ResizeSharedBuffer(SwapChainInfo& swap_chain_i
+     }
+   }
+ 
++  VkImageSubresource subresource = { VK_IMAGE_ASPECT_COLOR_BIT };
++  VkSubresourceLayout layout;
++  vkGetImageSubresourceLayout(binding_.device, backingImage->image(), &subresource, &layout);
++
++  LOG(ERROR) << "!!! got stride " << layout.rowPitch;
++  LOG(ERROR) << "!!! got offset " << layout.offset;
++
+   gfx::NativePixmapHandle native_pixmap_handle;
+-  native_pixmap_handle.planes.emplace_back(0, 0, backingImage->device_size(), std::move(fd));
++  native_pixmap_handle.planes.emplace_back(layout.rowPitch, layout.offset, backingImage->device_size(), std::move(fd));
+   native_pixmap_handle.modifier = modifier_props.drmFormatModifier;
+   gfx::GpuMemoryBufferHandle handle(std::move(native_pixmap_handle));
+ 
+@@ -348,6 +356,7 @@ bool OpenXrGraphicsBindingVulkan::SetOverlayTexture(gfx::GpuMemoryBufferHandle t
+ }
+ 
+ bool OpenXrGraphicsBindingVulkan::Render(const scoped_refptr<viz::ContextProvider>& context_provider) {
++  LOG(ERROR) << "!!! calling OpenXrGraphicsBindingVulkan::Render";
+   const gfx::Size imageSize = GetTransferSize();
+   SwapChainInfo &image = color_swapchain_images_[active_swapchain_index()];
+   commandBuffer_->Wait(UINT64_MAX);
